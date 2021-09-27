@@ -1,0 +1,19 @@
+[package]
+name = "ar5iv"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+lazy_static = "1.4.0"
+regex = "1.5.4"
+zip = "0.5"
+
+
+[dependencies.rocket]
+git="https://github.com/SergioBenitez/Rocket"
+version="0.5.0-rc.1"
+
+[dependencies.rocket_dyn_templates]
+git="https://github.com/SergioBenitez/Rocket"
+version = "0.1.0-rc.1"
+features = ["tera"]
