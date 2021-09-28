@@ -1,6 +1,11 @@
+use crate::cache::set_cached_asset;
 use regex::{Captures, Regex};
-use rustc_serialize::base64::{ToBase64, MIME};
-use rustc_serialize::hex::ToHex;
+use rocket_db_pools::deadpool_redis::ConnectionWrapper;
+use std::env;
+use std::fs::File;
+use std::io::{BufReader, Read};
+use std::path::{Path, PathBuf};
+use zip::ZipArchive;
 
 lazy_static! {
   static ref END_ARTICLE: Regex = Regex::new("</article>").unwrap();
@@ -11,6 +16,8 @@ lazy_static! {
   static ref HEX_JPG: Regex = Regex::new(r"^ffd8ffe0").unwrap();
   static ref HEX_PNG: Regex = Regex::new(r"^89504e47").unwrap();
   static ref HEX_GIF: Regex = Regex::new(r"^47494638").unwrap();
+  static ref AR5IV_PAPERS_ROOT_DIR: String =
+    env::var("AR5IV_PAPERS_ROOT_DIR").unwrap_or_else(|_| String::from("/data/arxmliv"));
 }
 
 pub fn branded_ar5iv_html(
@@ -110,22 +117,117 @@ pub fn branded_ar5iv_html(
   main_content
 }
 
-fn image_buffer_to_data_uri(buffer: Vec<u8>) -> String {
-  let b64 = buffer.to_base64(MIME);
-  let hex = buffer.to_hex();
+pub async fn assemble_paper(
+  conn: &mut ConnectionWrapper,
+  field_opt: Option<String>,
+  id: &str,
+) -> String {
+  // Option<File>
+  // TODO: Can the tokio::fs::File be swapped in here for some benefit? Does the ZIP crate allow for that?
+  //       I couldn't easily understand the answer from what I found online.
+  if let Some(paper_path) = build_paper_path(field_opt.as_ref(), &id) {
+    let zipf = File::open(&paper_path).unwrap();
+    let reader = BufReader::new(zipf);
+    let mut zip = ZipArchive::new(reader).unwrap();
 
-  format!("data:image/{};base64,{}", get_hex_type(&hex), b64)
+    let mut log = String::new();
+    let mut html = String::new();
+    let mut assets = Vec::new();
+    for i in 0..zip.len() {
+      if let Ok(mut file) = zip.by_index(i) {
+        if file.is_file() {
+          let mut asset = None;
+          match file.name() {
+            "cortex.log" => {
+              file.read_to_string(&mut log).unwrap();
+            }
+            name if name.ends_with(".html") => {
+              file.read_to_string(&mut html).unwrap();
+            }
+            other => {
+              // record assets for later management4
+              asset = Some(other.to_string());
+            }
+          }
+          if let Some(asset_name) = asset {
+            let mut file_contents = Vec::new();
+            file.read_to_end(&mut file_contents).unwrap();
+            //       the assets should be immediately inserted as we read the ZIP
+            //       for async fetching by the browser in the /images/ routes
+            if !file_contents.is_empty() {
+              assets.push((asset_name, file_contents));
+            }
+          }
+        }
+      }
+    }
+    // if we found assets, cache them.
+    for (key, val) in assets.into_iter() {
+      let cache_key = match field_opt {
+        Some(ref field) => field.to_string() + id + "/" + &key,
+        None => id.to_string() + "/" + &key,
+      };
+      set_cached_asset(conn, cache_key.as_str(), &val).await.ok();
+    }
+
+    // Lastly, build a single coherent HTML page.
+    let id_arxiv = if let Some(ref field) = field_opt {
+      format!("{}/{}", field, id)
+    } else {
+      id.to_owned()
+    };
+    branded_ar5iv_html(html, log, id_arxiv)
+  } else {
+    format!(
+      "paper id {}{} is not available on disk. ",
+      field_opt.unwrap_or_default(),
+      id
+    )
+  }
 }
 
-fn get_hex_type(file: &str) -> &str {
-  if HEX_JPG.is_match(file) {
-    "jpg"
-  } else if HEX_PNG.is_match(file) {
-    "png"
-  } else if HEX_GIF.is_match(file) {
-    "gif"
+pub async fn assemble_paper_asset(
+  field_opt: Option<String>,
+  id: &str,
+  filename: &str,
+) -> Option<Vec<u8>> {
+  if let Some(paper_path) = build_paper_path(field_opt.as_ref(), id) {
+    let zipf = File::open(&paper_path).unwrap();
+    let reader = BufReader::new(zipf);
+    let mut zip = ZipArchive::new(reader).unwrap();
+    if let Ok(mut asset) = zip.by_name(filename) {
+      {
+        let mut file_contents = Vec::new();
+        asset.read_to_end(&mut file_contents).ok();
+        println!(
+          "-- assembled {} bytes for asset name {}",
+          file_contents.len(),
+          filename
+        );
+        return Some(file_contents);
+      }
+    }
+    drop(zip);
+  }
+  None
+}
+
+fn build_paper_path(field_opt: Option<&String>, id: &str) -> Option<PathBuf> {
+  let id_base = &id[0..4];
+  let paper_path_str = format!(
+    "{}/{}/{}{}/tex_to_html.zip",
+    *AR5IV_PAPERS_ROOT_DIR,
+    id_base,
+    match field_opt {
+      Some(s) => s,
+      None => "",
+    },
+    id
+  );
+  let paper_path = Path::new(&paper_path_str);
+  if paper_path.exists() {
+    Some(paper_path.to_path_buf())
   } else {
-    eprintln!("-- invalid/unrecognized image file!");
-    "png"
+    None
   }
 }

@@ -1,0 +1,14 @@
+# sample values, don't deploy this to production systems
+[global]
+template_dir = "templates/"
+workers = 32
+keep_alive = 15
+
+limits = { forms = 32768 }
+
+[default.databases.memdb]
+url = "redis://127.0.0.1"
+min_connections = 8
+max_connections = 1024
+connect_timeout = 3
+idle_timeout = 120

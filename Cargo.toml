@@ -7,8 +7,6 @@ edition = "2018"
 lazy_static = "1.4.0"
 regex = "1.5.4"
 zip = "0.5"
-rustc-serialize = "0.3"
-
 
 [dependencies.rocket]
 git="https://github.com/SergioBenitez/Rocket"
@@ -18,3 +16,8 @@ version="0.5.0-rc.1"
 git="https://github.com/SergioBenitez/Rocket"
 version = "0.1.0-rc.1"
 features = ["tera"]
+
+[dependencies.rocket_db_pools]
+git="https://github.com/SergioBenitez/Rocket"
+version = "0.1.0-rc"
+features = ["deadpool_redis"]
