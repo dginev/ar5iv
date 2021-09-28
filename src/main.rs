@@ -6,7 +6,7 @@ extern crate rocket;
 // use rocket::http::uri::Absolute;
 // use rocket::response::content::RawText;
 use rocket::config::Config;
-use rocket::fs::NamedFile;
+use rocket::fs::{FileName, NamedFile};
 use rocket::http::Status;
 use rocket::response::{content, status, Redirect};
 use rocket::Request;
@@ -19,7 +19,7 @@ use std::collections::HashMap;
 use std::env;
 use std::fs::File;
 use std::io::{BufReader, Read};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use zip::ZipArchive;
 
 use ar5iv::dirty_templates;
@@ -50,6 +50,51 @@ async fn get_html(id: String) -> content::RawHtml<String> {
 #[get("/html/<field>/<id>")]
 async fn get_field_html(field: String, id: String) -> content::RawHtml<String> {
   assemble_paper(Some(field), id).await
+}
+
+#[get("/html/<id>/assets/<filename>")]
+async fn get_paper_asset(id: &str, filename: &str) -> Option<Vec<u8>> {
+  assemble_paper_asset(None, id, filename)
+}
+#[get("/html/<field>/<id>/assets/<filename>", rank = 2)]
+async fn get_field_paper_asset(field: String, id: &str, filename: &str) -> Option<Vec<u8>> {
+  assemble_paper_asset(Some(field), id, filename)
+}
+#[get("/html/<id>/assets/<subdir>/<filename>")]
+async fn get_paper_subdir_asset(id: &str, subdir: String, filename: &str) -> Option<Vec<u8>> {
+  let compound_name = subdir + "/" + filename;
+  assemble_paper_asset(None, id, &compound_name)
+}
+#[get("/html/<id>/assets/<subdir>/<subsubdir>/<filename>")]
+async fn get_paper_subsubdir_asset(
+  id: &str,
+  subdir: String,
+  subsubdir: &str,
+  filename: &str,
+) -> Option<Vec<u8>> {
+  let compound_name = subdir + "/" + subsubdir + "/" + filename;
+  assemble_paper_asset(None, id, &compound_name)
+}
+#[get("/html/<field>/<id>/assets/<subdir>/<filename>", rank = 2)]
+async fn get_field_paper_subdir_asset(
+  field: String,
+  id: &str,
+  subdir: String,
+  filename: &str,
+) -> Option<Vec<u8>> {
+  let compound_name = subdir + "/" + filename;
+  assemble_paper_asset(Some(field), id, &compound_name)
+}
+#[get("/html/<field>/<id>/assets/<subdir>/<subsubdir>/<filename>", rank = 2)]
+async fn get_field_paper_subsubdir_asset(
+  field: String,
+  id: &str,
+  subdir: String,
+  subsubdir: &str,
+  filename: &str,
+) -> Option<Vec<u8>> {
+  let compound_name = subdir + "/" + subsubdir + "/" + filename;
+  assemble_paper_asset(Some(field), id, &compound_name)
 }
 
 #[get("/abs/<field>/<id>")]
@@ -97,28 +142,15 @@ fn default_catcher(status: Status, req: &Request<'_>) -> status::Custom<String> 
 
 async fn assemble_paper(field_opt: Option<String>, id: String) -> content::RawHtml<String> {
   // Option<File>
-  let id_base = &id[0..4];
-  let id_arxiv = if let Some(ref field) = field_opt {
-    format!("{}/{}", field, id)
-  } else {
-    id.clone()
-  };
-  let field = field_opt.unwrap_or_default();
-  let paper_path_str = format!(
-    "{}/{}/{}{}/tex_to_html.zip",
-    *AR5IV_PAPERS_ROOT_DIR, id_base, field, id
-  );
-  let paper_path = Path::new(&paper_path_str);
-  if paper_path.exists() {
-    // TODO: Can the tokio::fs::File be swapped in here for some benefit? Does the ZIP crate allow for that?
-    //       I couldn't easily understand the answer from what I found online.
+  // TODO: Can the tokio::fs::File be swapped in here for some benefit? Does the ZIP crate allow for that?
+  //       I couldn't easily understand the answer from what I found online.
+  if let Some(paper_path) = build_paper_path(field_opt.as_ref(), &id) {
     let zipf = File::open(&paper_path).unwrap();
     let reader = BufReader::new(zipf);
     let mut zip = ZipArchive::new(reader).unwrap();
 
     let mut log = String::new();
     let mut html = String::new();
-    let mut doc_assets = HashMap::new();
     for i in 0..zip.len() {
       if let Ok(mut file) = zip.by_index(i) {
         if file.is_file() {
@@ -138,18 +170,63 @@ async fn assemble_paper(field_opt: Option<String>, id: String) -> content::RawHt
           if let Some(asset_name) = asset {
             let mut file_contents = Vec::new();
             file.read_to_end(&mut file_contents).unwrap();
-            doc_assets.insert(asset_name, file_contents);
+            // TODO: As soon as we get a cache engine added,
+            //       the assets should be immediately inserted as we read the ZIP
+            //       for async fetching by the browser in the /images/ routes
+            // redis.insert(asset_name, file_contents);
           }
         }
       }
     }
-
+    let id_arxiv = if let Some(ref field) = field_opt {
+      format!("{}/{}", field, id)
+    } else {
+      id.to_owned()
+    };
     content::RawHtml(dirty_templates::branded_ar5iv_html(html, log, id_arxiv))
   } else {
     content::RawHtml(format!(
       "paper id {}{} is not available on disk. ",
-      field, id
+      field_opt.unwrap_or_default(),
+      id
     ))
+  }
+}
+
+fn assemble_paper_asset(field_opt: Option<String>, id: &str, filename: &str) -> Option<Vec<u8>> {
+  if let Some(paper_path) = build_paper_path(field_opt.as_ref(), id) {
+    let zipf = File::open(&paper_path).unwrap();
+    let reader = BufReader::new(zipf);
+    let mut zip = ZipArchive::new(reader).unwrap();
+    if let Ok(mut asset) = zip.by_name(filename) {
+      {
+        let mut file_contents = Vec::new();
+        asset.read_to_end(&mut file_contents).ok();
+        return Some(file_contents);
+      }
+    }
+    drop(zip);
+  }
+  None
+}
+
+fn build_paper_path(field_opt: Option<&String>, id: &str) -> Option<PathBuf> {
+  let id_base = &id[0..4];
+  let paper_path_str = format!(
+    "{}/{}/{}{}/tex_to_html.zip",
+    *AR5IV_PAPERS_ROOT_DIR,
+    id_base,
+    match field_opt {
+      Some(s) => s,
+      None => "",
+    },
+    id
+  );
+  let paper_path = Path::new(&paper_path_str);
+  if paper_path.exists() {
+    Some(paper_path.to_path_buf())
+  } else {
+    None
   }
 }
 
@@ -166,6 +243,12 @@ fn rocket() -> _ {
         pdf_field,
         get_html,
         get_field_html,
+        get_paper_asset,
+        get_paper_subdir_asset,
+        get_paper_subsubdir_asset,
+        get_field_paper_asset,
+        get_field_paper_subdir_asset,
+        get_field_paper_subsubdir_asset,
         about,
         assets,
         favicon

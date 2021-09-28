@@ -1,4 +1,4 @@
-use regex::Regex;
+use regex::{Captures, Regex};
 use rustc_serialize::base64::{ToBase64, MIME};
 use rustc_serialize::hex::ToHex;
 
@@ -7,7 +7,7 @@ lazy_static! {
   static ref END_HEAD: Regex = Regex::new("</head>").unwrap();
   static ref START_PAGE_CONTENT: Regex = Regex::new("<div class=\"ltx_page_content\">").unwrap();
   static ref END_BODY: Regex = Regex::new("</body>").unwrap();
-  static ref SRC_ATTR: Regex = Regex::new(" src=\"").unwrap();
+  static ref SRC_ATTR: Regex = Regex::new(" src=\"([^\"]+)").unwrap();
   static ref HEX_JPG: Regex = Regex::new(r"^ffd8ffe0").unwrap();
   static ref HEX_PNG: Regex = Regex::new(r"^89504e47").unwrap();
   static ref HEX_GIF: Regex = Regex::new(r"^47494638").unwrap();
@@ -46,9 +46,15 @@ pub fn branded_ar5iv_html(
 
   // before doing any of our re-branded postprocessing, manage the internal links
   // relativize all src attributes to a current paper directory
-  let relativized_src = String::from(" src=\"./") + &id_arxiv + "/";
   main_content = SRC_ATTR
-    .replace_all(&main_content, relativized_src)
+    .replace_all(&main_content, |caps: &Captures| {
+      // leave as-is data URL images and remote sources
+      if caps[1].starts_with("data:") || caps[1].starts_with("http") {
+        String::from(" src=\"") + &caps[1]
+      } else {
+        String::from(" src=\"./") + &id_arxiv + "/assets/" + &caps[1]
+      }
+    })
     .to_string();
 
   // If a conversion log is present, attach it as a trailing section
