@@ -83,7 +83,7 @@ pub fn branded_ar5iv_html(
     <div id="S1.p1" class="ltx_para">
     <p class="ltx_p">
 "### + &conversion_report
-      .split("\n")
+      .split('\n')
       .collect::<Vec<_>>()
       .join("</p><p class=\"ltx_p\">")
       + r###"
@@ -125,7 +125,7 @@ pub async fn assemble_paper(
   // Option<File>
   // TODO: Can the tokio::fs::File be swapped in here for some benefit? Does the ZIP crate allow for that?
   //       I couldn't easily understand the answer from what I found online.
-  if let Some(paper_path) = build_paper_path(field_opt.as_ref(), &id) {
+  if let Some(paper_path) = build_paper_path(field_opt.as_ref(), id) {
     let zipf = File::open(&paper_path).unwrap();
     let reader = BufReader::new(zipf);
     let mut zip = ZipArchive::new(reader).unwrap();
