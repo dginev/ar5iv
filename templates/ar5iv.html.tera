@@ -4,7 +4,9 @@
 <head>
   <meta http-equiv="Content-Type" content="text/html" />
   <meta charset="utf-8" />
-  <title> No content available </title>
+  <title>ar5iv – towards arXiv articles as HTML5 web documents</title>
+  <meta name="description"
+    content="A development preview of arXiv articles as HTML5 web documents. Converted by the LaTeXML toolkit in the arXMLiv research project.">
   <meta name="language" content="English">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link media="all" rel="stylesheet" href="//cdn.jsdelivr.net/gh/dginev/arxmliv-css@0.4.1/css/arxmliv.css">
