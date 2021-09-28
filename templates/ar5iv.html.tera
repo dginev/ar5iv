@@ -35,19 +35,19 @@
                 worthy of native arXiv
                 adoption.
               </li>
-            </ul>
-          </div>
-
-          <div class="ltx_para">
-            <p class="ltx_p"><span>Sample: <a class="ltx_ref" href="/html/1910.06709">A Simple Proof of the Quadratic
-                  Formula
-                  (1910.06709)</a></span></p>
-            <p class="ltx_p">View any ar<span class="ltx_font_bold">X</span>iv article URL by changing the <span
-                class="ltx_font_bold">X</span>
-              to a <span style="color:#e44d26">5</span></p>
-            <ul>
-              <li>https://ar<span class="ltx_font_bold">x</span>iv.org/abs/1910.06709</li>
-              <li>https://ar<span style="color:#e44d26">5</span>iv.org/abs/1910.06709</li>
+              <li style="list-style-type: none;">
+                <p class="ltx_p"><span>Sample: <a class="ltx_ref" href="/html/1910.06709">A Simple Proof of the
+                      Quadratic
+                      Formula
+                      (1910.06709)</a></span></p>
+                <p class="ltx_p">View any ar<span class="ltx_font_bold">X</span>iv article URL by changing the <span
+                    class="ltx_font_bold">X</span>
+                  to a <span style="color:#e44d26">5</span></p>
+                <ul style="list-style-type: circle;">
+                  <li>https://ar<span class="ltx_font_bold">x</span>iv.org/abs/1910.06709</li>
+                  <li>https://ar<span style="color:#e44d26">5</span>iv.org/abs/1910.06709</li>
+                </ul>
+              </li>
             </ul>
           </div>
         </section>
