@@ -53,26 +53,29 @@ pub async fn get_cached_asset(conn: &mut ConnectionWrapper, key: &str) -> Result
 
 pub async fn assemble_paper_with_cache(
   conn: &mut ConnectionWrapper,
-  field_opt: Option<String>,
+  field_opt: Option<&str>,
   id: &str,
-) -> String {
+) -> Option<String> {
   let key = match field_opt {
     Some(ref field) => field.to_string() + id,
     None => id.to_string(),
   };
   let cached = get_cached(&mut *conn, &key).await.unwrap_or_default();
   if !cached.is_empty() {
-    cached
+    Some(cached)
   } else {
-    let paper = assemble_paper(conn, field_opt, id).await;
-    set_cached(&mut *conn, &key, paper.as_str()).await.ok();
-    paper
+    if let Some(paper) = assemble_paper(conn, field_opt, id).await {
+      set_cached(&mut *conn, &key, paper.as_str()).await.ok();
+      Some(paper)
+    } else {
+      None
+    }
   }
 }
 
 pub async fn assemble_paper_asset_with_cache(
   conn: &mut ConnectionWrapper,
-  field_opt: Option<String>,
+  field_opt: Option<&str>,
   id: &str,
   filename: &str,
 ) -> Option<(ContentType, Vec<u8>)> {

@@ -40,17 +40,31 @@ async fn favicon() -> Option<NamedFile> {
 }
 
 #[get("/html/<id>")]
-async fn get_html(mut conn: Connection<Cache>, id: &str) -> content::RawHtml<String> {
-  content::RawHtml(assemble_paper_with_cache(&mut conn, None, id).await)
+async fn get_html(
+  mut conn: Connection<Cache>,
+  id: &str,
+) -> Result<content::RawHtml<String>, Template> {
+  if let Some(paper) = assemble_paper_with_cache(&mut conn, None, id).await {
+    Ok(content::RawHtml(paper))
+  } else {
+    let mut map: HashMap<String, String> = HashMap::new();
+    map.insert("id".to_string(), id.to_string());
+    Err(Template::render("404", &map))
+  }
 }
 #[get("/html/<field>/<id>")]
 async fn get_field_html(
   mut conn: Connection<Cache>,
-  field: String,
+  field: &str,
   id: &str,
-) -> content::RawHtml<String> {
-  let paper = assemble_paper_with_cache(&mut conn, Some(field), id).await;
-  content::RawHtml(paper)
+) -> Result<content::RawHtml<String>, Template> {
+  if let Some(paper) = assemble_paper_with_cache(&mut conn, Some(field), id).await {
+    Ok(content::RawHtml(paper))
+  } else {
+    let mut map: HashMap<String, String> = HashMap::new();
+    map.insert("id".to_string(), format!("{}/{}", field, id));
+    Err(Template::render("404", &map))
+  }
 }
 
 #[get("/html/<id>/assets/<filename>")]
@@ -64,7 +78,7 @@ async fn get_paper_asset(
 #[get("/html/<field>/<id>/assets/<filename>", rank = 2)]
 async fn get_field_paper_asset(
   mut conn: Connection<Cache>,
-  field: String,
+  field: &str,
   id: &str,
   filename: &str,
 ) -> Option<(ContentType, Vec<u8>)> {
@@ -94,7 +108,7 @@ async fn get_paper_subsubdir_asset(
 #[get("/html/<field>/<id>/assets/<subdir>/<filename>", rank = 2)]
 async fn get_field_paper_subdir_asset(
   mut conn: Connection<Cache>,
-  field: String,
+  field: &str,
   id: &str,
   subdir: String,
   filename: &str,
@@ -105,7 +119,7 @@ async fn get_field_paper_subdir_asset(
 #[get("/html/<field>/<id>/assets/<subdir>/<subsubdir>/<filename>", rank = 2)]
 async fn get_field_paper_subsubdir_asset(
   mut conn: Connection<Cache>,
-  field: String,
+  field: &str,
   id: &str,
   subdir: String,
   subsubdir: &str,

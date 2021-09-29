@@ -23,7 +23,7 @@ lazy_static! {
 pub fn branded_ar5iv_html(
   mut main_content: String,
   conversion_report: String,
-  field_opt: Option<String>,
+  field_opt: Option<&str>,
   id: &str,
 ) -> String {
   let id_arxiv = if let Some(ref field) = field_opt {
@@ -132,13 +132,13 @@ pub fn branded_ar5iv_html(
 
 pub async fn assemble_paper(
   conn: &mut ConnectionWrapper,
-  field_opt: Option<String>,
+  field_opt: Option<&str>,
   id: &str,
-) -> String {
+) -> Option<String> {
   // Option<File>
   // TODO: Can the tokio::fs::File be swapped in here for some benefit? Does the ZIP crate allow for that?
   //       I couldn't easily understand the answer from what I found online.
-  if let Some(paper_path) = build_paper_path(field_opt.as_ref(), id) {
+  if let Some(paper_path) = build_paper_path(field_opt, id) {
     let zipf = File::open(&paper_path).unwrap();
     let reader = BufReader::new(zipf);
     let mut zip = ZipArchive::new(reader).unwrap();
@@ -184,22 +184,18 @@ pub async fn assemble_paper(
     }
 
     // Lastly, build a single coherent HTML page.
-    branded_ar5iv_html(html, log, field_opt, id)
+    Some(branded_ar5iv_html(html, log, field_opt, id))
   } else {
-    format!(
-      "paper id {}{} is not available on disk. ",
-      field_opt.unwrap_or_default(),
-      id
-    )
+    None
   }
 }
 
 pub async fn assemble_paper_asset(
-  field_opt: Option<String>,
+  field_opt: Option<&str>,
   id: &str,
   filename: &str,
 ) -> Option<Vec<u8>> {
-  if let Some(paper_path) = build_paper_path(field_opt.as_ref(), id) {
+  if let Some(paper_path) = build_paper_path(field_opt, id) {
     let zipf = File::open(&paper_path).unwrap();
     let reader = BufReader::new(zipf);
     let mut zip = ZipArchive::new(reader).unwrap();
@@ -220,7 +216,7 @@ pub async fn assemble_paper_asset(
   None
 }
 
-fn build_paper_path(field_opt: Option<&String>, id: &str) -> Option<PathBuf> {
+fn build_paper_path(field_opt: Option<&str>, id: &str) -> Option<PathBuf> {
   let id_base = &id[0..4];
   let paper_path_str = format!(
     "{}/{}/{}{}/tex_to_html.zip",
