@@ -23,8 +23,14 @@ lazy_static! {
 pub fn branded_ar5iv_html(
   mut main_content: String,
   conversion_report: String,
-  id_arxiv: String,
+  field_opt: Option<String>,
+  id: &str,
 ) -> String {
+  let id_arxiv = if let Some(ref field) = field_opt {
+    format!("{}/{}", field, id)
+  } else {
+    id.to_owned()
+  };
   // ensure main_content is a string if undefined
   if main_content.is_empty() {
     main_content = String::from(
@@ -59,7 +65,14 @@ pub fn branded_ar5iv_html(
       if caps[1].starts_with("data:") || caps[1].starts_with("http") {
         String::from(" src=\"") + &caps[1]
       } else {
-        String::from(" src=\"./") + &id_arxiv + "/assets/" + &caps[1]
+        // there is a catch here in the ar5iv.org setting.
+        // the old ID scheme has an extra component in the relative path, e.g. compare
+        // ./astro-ph/0001016
+        // to the modern
+        // ./2105.04404
+        // so we should *always* use the id *without* the field,
+        // when pointing from within a document to an asset under it.
+        String::from(" src=\"./") + id + "/assets/" + &caps[1]
       }
     })
     .to_string();
@@ -171,12 +184,7 @@ pub async fn assemble_paper(
     }
 
     // Lastly, build a single coherent HTML page.
-    let id_arxiv = if let Some(ref field) = field_opt {
-      format!("{}/{}", field, id)
-    } else {
-      id.to_owned()
-    };
-    branded_ar5iv_html(html, log, id_arxiv)
+    branded_ar5iv_html(html, log, field_opt, id)
   } else {
     format!(
       "paper id {}{} is not available on disk. ",
