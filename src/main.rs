@@ -145,13 +145,13 @@ async fn assets(name: String) -> Option<NamedFile> {
 }
 
 #[catch(404)]
-fn general_not_found() -> content::RawHtml<&'static str> {
-  content::RawHtml(
-    r#"
-        <p>Hmm... What are you looking for?</p>
-        Say <a href="/hello/Sergio/100">hello!</a>
-    "#,
-  )
+fn general_not_found(req: &Request) -> Template {
+  let mut map: HashMap<String, String> = HashMap::new();
+  map.insert(
+    "id".to_string(),
+    req.uri().path().to_string()[1..].to_string(),
+  );
+  Template::render("404", &map)
 }
 
 #[catch(default)]
