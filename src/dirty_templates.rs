@@ -1,5 +1,6 @@
 use crate::cache::set_cached_asset;
 use regex::{Captures, Regex};
+use rocket::tokio::task::spawn_blocking;
 use rocket_db_pools::deadpool_redis::ConnectionWrapper;
 use std::env;
 use std::fs::File;
@@ -139,52 +140,59 @@ pub async fn assemble_paper(
   // TODO: Can the tokio::fs::File be swapped in here for some benefit? Does the ZIP crate allow for that?
   //       I couldn't easily understand the answer from what I found online.
   if let Some(paper_path) = build_paper_path(field_opt, id) {
-    let zipf = File::open(&paper_path).unwrap();
-    let reader = BufReader::new(zipf);
-    let mut zip = ZipArchive::new(reader).unwrap();
-
-    let mut log = String::new();
-    let mut html = String::new();
-    let mut assets = Vec::new();
-    for i in 0..zip.len() {
-      if let Ok(mut file) = zip.by_index(i) {
-        if file.is_file() {
-          let mut asset = None;
-          match file.name() {
-            "cortex.log" => {
-              file.read_to_string(&mut log).unwrap();
+    if let Some(mut zip) = spawn_blocking(move || {
+      let zipf = File::open(&paper_path).unwrap();
+      let reader = BufReader::new(zipf);
+      ZipArchive::new(reader).unwrap()
+    })
+    .await
+    .ok()
+    {
+      let mut log = String::new();
+      let mut html = String::new();
+      let mut assets = Vec::new();
+      for i in 0..zip.len() {
+        if let Ok(mut file) = zip.by_index(i) {
+          if file.is_file() {
+            let mut asset = None;
+            match file.name() {
+              "cortex.log" => {
+                file.read_to_string(&mut log).unwrap();
+              }
+              name if name.ends_with(".html") => {
+                file.read_to_string(&mut html).unwrap();
+              }
+              other => {
+                // record assets for later management4
+                asset = Some(other.to_string());
+              }
             }
-            name if name.ends_with(".html") => {
-              file.read_to_string(&mut html).unwrap();
-            }
-            other => {
-              // record assets for later management4
-              asset = Some(other.to_string());
-            }
-          }
-          if let Some(asset_name) = asset {
-            let mut file_contents = Vec::new();
-            file.read_to_end(&mut file_contents).unwrap();
-            //       the assets should be immediately inserted as we read the ZIP
-            //       for async fetching by the browser in the /images/ routes
-            if !file_contents.is_empty() {
-              assets.push((asset_name, file_contents));
+            if let Some(asset_name) = asset {
+              let mut file_contents = Vec::new();
+              file.read_to_end(&mut file_contents).unwrap();
+              //       the assets should be immediately inserted as we read the ZIP
+              //       for async fetching by the browser in the /images/ routes
+              if !file_contents.is_empty() {
+                assets.push((asset_name, file_contents));
+              }
             }
           }
         }
       }
-    }
-    // if we found assets, cache them.
-    for (key, val) in assets.into_iter() {
-      let cache_key = match field_opt {
-        Some(ref field) => field.to_string() + id + "/" + &key,
-        None => id.to_string() + "/" + &key,
-      };
-      set_cached_asset(conn, cache_key.as_str(), &val).await.ok();
-    }
+      // if we found assets, cache them.
+      for (key, val) in assets.into_iter() {
+        let cache_key = match field_opt {
+          Some(ref field) => field.to_string() + id + "/" + &key,
+          None => id.to_string() + "/" + &key,
+        };
+        set_cached_asset(conn, cache_key.as_str(), &val).await.ok();
+      }
 
-    // Lastly, build a single coherent HTML page.
-    Some(branded_ar5iv_html(html, log, field_opt, id))
+      // Lastly, build a single coherent HTML page.
+      Some(branded_ar5iv_html(html, log, field_opt, id))
+    } else {
+      None
+    }
   } else {
     None
   }
@@ -196,24 +204,27 @@ pub async fn assemble_paper_asset(
   filename: &str,
 ) -> Option<Vec<u8>> {
   if let Some(paper_path) = build_paper_path(field_opt, id) {
-    let zipf = File::open(&paper_path).unwrap();
-    let reader = BufReader::new(zipf);
-    let mut zip = ZipArchive::new(reader).unwrap();
-    if let Ok(mut asset) = zip.by_name(filename) {
-      {
+    if let Some(mut zip) = spawn_blocking(move || {
+      let zipf = File::open(&paper_path).unwrap();
+      let reader = BufReader::new(zipf);
+      ZipArchive::new(reader).unwrap()
+    })
+    .await
+    .ok()
+    {
+      if let Ok(mut asset) = zip.by_name(filename) {
         let mut file_contents = Vec::new();
         asset.read_to_end(&mut file_contents).ok();
-        println!(
-          "-- assembled {} bytes for asset name {}",
-          file_contents.len(),
-          filename
-        );
-        return Some(file_contents);
+        Some(file_contents)
+      } else {
+        None
       }
+    } else {
+      None
     }
-    drop(zip);
+  } else {
+    None
   }
-  None
 }
 
 fn build_paper_path(field_opt: Option<&str>, id: &str) -> Option<PathBuf> {
