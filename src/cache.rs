@@ -1,4 +1,4 @@
-use crate::dirty_templates::{assemble_paper, assemble_paper_asset};
+use crate::dirty_templates::{assemble_log, assemble_paper, assemble_paper_asset, LOG_FILENAME};
 use rocket::http::ContentType;
 use rocket_db_pools::deadpool_redis::redis::cmd;
 use rocket_db_pools::deadpool_redis::ConnectionWrapper;
@@ -49,6 +49,20 @@ pub async fn get_cached_asset(conn: &mut ConnectionWrapper, key: &str) -> Result
     }
     Err(e) => Err(e),
   }
+}
+
+pub async fn hget_cached(
+  conn: &mut ConnectionWrapper,
+  hash: &str,
+  key: &str,
+) -> Result<String, ()> {
+  let value: Result<String, ()> = cmd("HGET")
+    .arg(hash)
+    .arg(key)
+    .query_async::<_, String>(conn)
+    .await
+    .map_err(|_| ());
+  value
 }
 
 pub async fn assemble_paper_with_cache(
@@ -104,4 +118,27 @@ pub async fn assemble_paper_asset_with_cache(
       asset,
     )
   })
+}
+
+pub async fn assemble_log_with_cache(
+  conn: &mut ConnectionWrapper,
+  field_opt: Option<&str>,
+  id: &str,
+) -> Option<String> {
+  let key = match field_opt {
+    Some(ref field) => field.to_string() + id,
+    None => id.to_string(),
+  } + "/"
+    + &LOG_FILENAME;
+  let cached = get_cached(&mut *conn, &key).await.unwrap_or_default();
+  if !cached.is_empty() {
+    Some(cached)
+  } else {
+    if let Some(paper) = assemble_log(field_opt, id).await {
+      set_cached(&mut *conn, &key, paper.as_str()).await.ok();
+      Some(paper)
+    } else {
+      None
+    }
+  }
 }

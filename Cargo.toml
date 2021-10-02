@@ -2,11 +2,23 @@
 name = "ar5iv"
 version = "0.1.0"
 edition = "2018"
+default-run = "ar5iv"
 
 [dependencies]
 lazy_static = "1.4.0"
 regex = "1.5.4"
 zip = "0.5"
+walkdir = "2"
+redis = "0.21.2"
+
+
+[[bin]]
+path = "src/main.rs"
+name = "ar5iv"
+
+[[bin]]
+path = "bin/cache_adjacency_map.rs"
+name = "cache_adjacency_map"
 
 [dependencies.rocket]
 git="https://github.com/SergioBenitez/Rocket"

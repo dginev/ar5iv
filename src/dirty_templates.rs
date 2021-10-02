@@ -1,12 +1,17 @@
-use crate::cache::set_cached_asset;
 use regex::{Captures, Regex};
 use rocket::tokio::task::spawn_blocking;
 use rocket_db_pools::deadpool_redis::ConnectionWrapper;
-use std::env;
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 use zip::ZipArchive;
+
+use crate::cache::{hget_cached, set_cached, set_cached_asset};
+use crate::paper_order::AR5IV_PAPERS_ROOT_DIR;
+
+pub static LOG_FILENAME: &'static str = "cortex.log";
+pub static ARXMLIV_CSS_URL: &'static str =
+  "//cdn.jsdelivr.net/gh/dginev/arxmliv-css@0.4.1/css/arxmliv.css";
 
 lazy_static! {
   static ref END_ARTICLE: Regex = Regex::new("</article>").unwrap();
@@ -17,21 +22,15 @@ lazy_static! {
   static ref HEX_JPG: Regex = Regex::new(r"^ffd8ffe0").unwrap();
   static ref HEX_PNG: Regex = Regex::new(r"^89504e47").unwrap();
   static ref HEX_GIF: Regex = Regex::new(r"^47494638").unwrap();
-  static ref AR5IV_PAPERS_ROOT_DIR: String =
-    env::var("AR5IV_PAPERS_ROOT_DIR").unwrap_or_else(|_| String::from("/data/arxmliv"));
 }
 
 pub fn branded_ar5iv_html(
   mut main_content: String,
-  conversion_report: String,
-  field_opt: Option<&str>,
   id: &str,
+  id_arxiv: String,
+  prev: Option<String>,
+  next: Option<String>,
 ) -> String {
-  let id_arxiv = if let Some(ref field) = field_opt {
-    format!("{}/{}", field, id)
-  } else {
-    id.to_owned()
-  };
   // ensure main_content is a string if undefined
   if main_content.is_empty() {
     main_content = String::from(
@@ -79,35 +78,35 @@ pub fn branded_ar5iv_html(
     .to_string();
 
   // If a conversion log is present, attach it as a trailing section
-  if !conversion_report.is_empty() {
-    let ar5iv_logos = r###"
-<div class="ar5iv-logos">
+  let prev_html = if let Some(prev_id) = prev {
+    format!("<a href=\"/html/{}\">←</a>", prev_id)
+  } else {
+    String::new()
+  };
+  let next_html = if let Some(next_id) = next {
+    format!("<a href=\"/html/{}\">→</a>", next_id)
+  } else {
+    String::new()
+  };
+  let ar5iv_logos = "<div class=\"ar5iv-logos\">".to_string()
+    + &prev_html
+    + r###"
     <a href="/"><img height="64" src="/assets/ar5iv.png"></a>
-    &nbsp;&nbsp;&nbsp;
+       
     <a href="https://arxiv.org/abs/"###
-      .to_string()
-      + &id_arxiv
-      + r###"" class="arxiv-button">View original paper on arXiv</a>
+    + &id_arxiv
+    + r###"" class="arxiv-button">View original paper on arXiv</a>
+       
+    <a href="/log/"###
+    + &id_arxiv
+    + r###"" class="arxiv-button"">Read conversion report</a>
+    "###
+    + &next_html
+    + r###"
 </div>
-"###;
-    let html_report = ar5iv_logos
-      + r###"
-<section id="latexml-conversion-report" class="ltx_section ltx_conversion_report">
-    <h2 class="ltx_title ltx_title_section">CorTeX Conversion Report</h2>
-    <div id="S1.p1" class="ltx_para">
-    <p class="ltx_p">
-"### + &conversion_report
-      .split('\n')
-      .collect::<Vec<_>>()
-      .join("</p><p class=\"ltx_p\">")
-      + r###"
-    </p>
-    </div>
-</section>
 </article>
 "###;
-    main_content = END_ARTICLE.replace(&main_content, html_report).to_string();
-  }
+  main_content = END_ARTICLE.replace(&main_content, ar5iv_logos).to_string();
 
   let maybe_mathjax_js = r###"
     <script>
@@ -119,15 +118,15 @@ pub fn branded_ar5iv_html(
     </script>
     </body>"###;
 
-  let arxmliv_css = r###"
-<link media="all" rel="stylesheet" href="//cdn.jsdelivr.net/gh/dginev/arxmliv-css@0.4.1/css/arxmliv.css">
-</head>"###;
+  let arxmliv_css = String::from("<link media=\"all\" rel=\"stylesheet\" href=\"")
+    + ARXMLIV_CSS_URL
+    + "\">
+</head>";
 
   main_content = END_HEAD.replace(&main_content, arxmliv_css).to_string();
   main_content = END_BODY
     .replace(&main_content, maybe_mathjax_js)
     .to_string();
-
   main_content
 }
 
@@ -140,6 +139,11 @@ pub async fn assemble_paper(
   // TODO: Can the tokio::fs::File be swapped in here for some benefit? Does the ZIP crate allow for that?
   //       I couldn't easily understand the answer from what I found online.
   if let Some(paper_path) = build_paper_path(field_opt, id) {
+    let id_arxiv = if let Some(ref field) = field_opt {
+      format!("{}/{}", field, id)
+    } else {
+      id.to_owned()
+    };
     if let Some(mut zip) = spawn_blocking(move || {
       let zipf = File::open(&paper_path).unwrap();
       let reader = BufReader::new(zipf);
@@ -156,11 +160,11 @@ pub async fn assemble_paper(
           if file.is_file() {
             let mut asset = None;
             match file.name() {
-              "cortex.log" => {
-                file.read_to_string(&mut log).unwrap();
-              }
               name if name.ends_with(".html") => {
                 file.read_to_string(&mut html).unwrap();
+              }
+              name if name == LOG_FILENAME => {
+                file.read_to_string(&mut log).unwrap();
               }
               other => {
                 // record assets for later management4
@@ -181,15 +185,33 @@ pub async fn assemble_paper(
       }
       // if we found assets, cache them.
       for (key, val) in assets.into_iter() {
-        let cache_key = match field_opt {
-          Some(ref field) => field.to_string() + id + "/" + &key,
-          None => id.to_string() + "/" + &key,
-        };
+        let cache_key = format!("{}/{}", id_arxiv, &key);
         set_cached_asset(conn, cache_key.as_str(), &val).await.ok();
       }
-
+      // the log is dealt with under the /log/ route
+      // but since we have it here, cache it
+      if !log.is_empty() {
+        let cache_key = format!("{}/{}", id_arxiv, LOG_FILENAME);
+        set_cached(conn, &cache_key, &log).await.ok();
+      }
+      let mut pieces: Vec<String> =
+        if let Some(adjacent_papers) = hget_cached(conn, "paper_order", &id_arxiv).await.ok() {
+          adjacent_papers.split(";").map(|x| x.to_string()).collect()
+        } else {
+          Vec::new()
+        };
+      let next = if pieces.len() < 2 {
+        None
+      } else {
+        Some(pieces.pop().unwrap())
+      };
+      let prev = if pieces.is_empty() {
+        None
+      } else {
+        Some(pieces.pop().unwrap())
+      };
       // Lastly, build a single coherent HTML page.
-      Some(branded_ar5iv_html(html, log, field_opt, id))
+      Some(branded_ar5iv_html(html, id, id_arxiv, prev, next))
     } else {
       None
     }
@@ -216,6 +238,63 @@ pub async fn assemble_paper_asset(
         let mut file_contents = Vec::new();
         asset.read_to_end(&mut file_contents).ok();
         Some(file_contents)
+      } else {
+        None
+      }
+    } else {
+      None
+    }
+  } else {
+    None
+  }
+}
+
+pub async fn assemble_log(field_opt: Option<&str>, id: &str) -> Option<String> {
+  if let Some(paper_path) = build_paper_path(field_opt, id) {
+    if let Some(mut zip) = spawn_blocking(move || {
+      let zipf = File::open(&paper_path).unwrap();
+      let reader = BufReader::new(zipf);
+      ZipArchive::new(reader).unwrap()
+    })
+    .await
+    .ok()
+    {
+      if let Ok(mut asset) = zip.by_name(LOG_FILENAME) {
+        let mut conversion_report: String = String::new();
+        asset.read_to_string(&mut conversion_report).ok();
+        let id_arxiv = if let Some(ref field) = field_opt {
+          format!("{}/{}", field, id)
+        } else {
+          id.to_owned()
+        };
+        let html_page = String::from(
+          r###"<!DOCTYPE html><html>
+<head>
+<title>Conversion report for arXiv article "###,
+        ) + &id_arxiv
+          + r###"</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<link media="all" rel="stylesheet" href=""###
+          + ARXMLIV_CSS_URL
+          + r###"">
+</head>
+<body>
+<div class="ltx_page_main">
+<div class="ltx_page_content">
+<article
+        <section id="latexml-conversion-report" class="ltx_section ltx_conversion_report">
+    <h2 class="ltx_title ltx_title_section">CorTeX Conversion Report</h2>
+    <div id="S1.p1" class="ltx_para">
+    <p class="ltx_p">
+"### + &conversion_report
+          .split('\n')
+          .collect::<Vec<_>>()
+          .join("</p><p class=\"ltx_p\">")
+          + r###"
+    </p>
+    </div>
+</section>"###;
+        Some(html_page)
       } else {
         None
       }

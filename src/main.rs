@@ -11,7 +11,9 @@ use rocket_db_pools::Connection;
 use rocket_db_pools::{deadpool_redis, Database};
 use rocket_dyn_templates::Template;
 
-use ar5iv::cache::{assemble_paper_asset_with_cache, assemble_paper_with_cache};
+use ar5iv::cache::{
+  assemble_log_with_cache, assemble_paper_asset_with_cache, assemble_paper_with_cache,
+};
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -168,6 +170,34 @@ fn general_not_found(req: &Request) -> Template {
   Template::render("404", &map)
 }
 
+#[get("/log/<id>")]
+async fn get_log(
+  mut conn: Connection<Cache>,
+  id: &str,
+) -> Result<content::RawHtml<String>, Template> {
+  if let Some(paper) = assemble_log_with_cache(&mut conn, None, id).await {
+    Ok(content::RawHtml(paper))
+  } else {
+    let mut map: HashMap<String, String> = HashMap::new();
+    map.insert("id".to_string(), id.to_string());
+    Err(Template::render("404", &map))
+  }
+}
+#[get("/log/<field>/<id>")]
+async fn get_field_log(
+  mut conn: Connection<Cache>,
+  field: &str,
+  id: &str,
+) -> Result<content::RawHtml<String>, Template> {
+  if let Some(paper) = assemble_log_with_cache(&mut conn, Some(field), id).await {
+    Ok(content::RawHtml(paper))
+  } else {
+    let mut map: HashMap<String, String> = HashMap::new();
+    map.insert("id".to_string(), format!("{}/{}", field, id));
+    Err(Template::render("404", &map))
+  }
+}
+
 #[catch(default)]
 fn default_catcher(status: Status, req: &Request<'_>) -> status::Custom<String> {
   let msg = format!("{} ({})", status, req.uri());
@@ -188,6 +218,8 @@ fn rocket() -> _ {
         pdf_field,
         get_html,
         get_field_html,
+        get_log,
+        get_field_log,
         get_paper_asset,
         get_paper_subdir_asset,
         get_paper_subsubdir_asset,
