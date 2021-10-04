@@ -209,7 +209,9 @@ pub async fn assemble_paper(
       if !log.is_empty() {
         let cache_key = format!("{}/{}", id_arxiv, LOG_FILENAME);
         if let Some(ref mut conn) = conn_opt {
-          set_cached(conn, &cache_key, &log).await.ok();
+          set_cached(conn, &cache_key, &log_to_html(&log, &id_arxiv))
+            .await
+            .ok();
         }
       }
       let mut pieces: Vec<String> = if let Some(ref mut conn) = conn_opt {
@@ -310,71 +312,7 @@ pub async fn assemble_log(field_opt: Option<&str>, id: &str) -> Option<String> {
         } else {
           id.to_owned()
         };
-        let html_page = String::from(
-          r###"<!DOCTYPE html><html>
-<head>
-<title>Conversion report for arXiv article "###,
-        ) + &id_arxiv
-          + r###"</title>
-<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-<link media="all" rel="stylesheet" href=""###
-          + ARXMLIV_CSS_URL
-          + r###"">
-</head>
-<body>
-<div class="ltx_page_main">
-<div class="ltx_page_content">
-<article class="ltx_document ltx_authors_1line">
-  <section id="latexml-conversion-report" class="ltx_section ltx_conversion_report">
-    <h2 class="ltx_title ltx_title_section">LaTeXML conversion report (<a class="ltx_ref" href="/html/"###
-          + &id_arxiv
-          + "\">"
-          + &id_arxiv
-          + r###"</a>)</h2>
-    <div id="S1.p1" class="ltx_para">
-      <p class="ltx_p">
-"### + &conversion_report
-          .split('\n')
-          .map(|line| {
-            let line = line.replace('\t', "&emsp;");
-            if line.starts_with("Warning:") {
-              "</p><p class=\"ltx_p\"><span class=\"ltx_WARNING\">".to_string() + &line + "</span>"
-            } else if line.starts_with("Error:") {
-              "</p><p class=\"ltx_p\"><span class=\"ltx_ERROR\">".to_string() + &line + "</span>"
-            } else if line.starts_with("Info:") {
-              "</p><p class=\"ltx_p\"><span class=\"ltx_INFO\">".to_string() + &line + "</span>"
-            } else if line.starts_with("Fatal:") {
-              "</p><p class=\"ltx_p\"><span class=\"ltx_FATAL\">".to_string() + &line + "</span>"
-            } else if line.starts_with("Conversion complete:")
-              || line.starts_with("Post-processing complete:")
-            {
-              // provide a colored final status
-              if line.contains(" fatal") {
-                "</p><p class=\"ltx_p\"><span class=\"ltx_FATAL\">".to_string() + &line + "</span>"
-              } else if line.contains(" error") {
-                "</p><p class=\"ltx_p\"><span class=\"ltx_ERROR\">".to_string() + &line + "</span>"
-              } else if line.contains(" warning") {
-                "</p><p class=\"ltx_p\"><span class=\"ltx_WARNING\">".to_string()
-                  + &line
-                  + "</span>"
-              } else {
-                "</p><p class=\"ltx_p\"><span class=\"ltx_INFO\">".to_string() + &line + "</span>"
-              }
-            } else {
-              line
-            }
-          })
-          .collect::<Vec<_>>()
-          .join("<br>\n")
-          + r###"
-      </p>
-    </div>
-  </section>
-</article>
-</div></div>
-</body>
-</html>"###;
-        Some(html_page)
+        Some(log_to_html(&conversion_report, &id_arxiv))
       } else {
         None
       }
@@ -384,6 +322,71 @@ pub async fn assemble_log(field_opt: Option<&str>, id: &str) -> Option<String> {
   } else {
     None
   }
+}
+
+fn log_to_html(conversion_report: &str, id_arxiv: &str) -> String {
+  String::from(
+    r###"<!DOCTYPE html><html>
+<head>
+<title>Conversion report for arXiv article "###,
+  ) + &id_arxiv
+    + r###"</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<link media="all" rel="stylesheet" href=""###
+    + ARXMLIV_CSS_URL
+    + r###"">
+</head>
+<body>
+<div class="ltx_page_main">
+<div class="ltx_page_content">
+<article class="ltx_document ltx_authors_1line">
+  <section id="latexml-conversion-report" class="ltx_section ltx_conversion_report">
+    <h2 class="ltx_title ltx_title_section">LaTeXML conversion report (<a class="ltx_ref" href="/html/"###
+    + &id_arxiv
+    + "\">"
+    + &id_arxiv
+    + r###"</a>)</h2>
+    <div id="S1.p1" class="ltx_para">
+      <p class="ltx_p">
+"### + &conversion_report
+    .split('\n')
+    .map(|line| {
+      let line = line.replace('\t', "&emsp;");
+      if line.starts_with("Warning:") {
+        "</p><p class=\"ltx_p\"><span class=\"ltx_WARNING\">".to_string() + &line + "</span>"
+      } else if line.starts_with("Error:") {
+        "</p><p class=\"ltx_p\"><span class=\"ltx_ERROR\">".to_string() + &line + "</span>"
+      } else if line.starts_with("Info:") {
+        "</p><p class=\"ltx_p\"><span class=\"ltx_INFO\">".to_string() + &line + "</span>"
+      } else if line.starts_with("Fatal:") {
+        "</p><p class=\"ltx_p\"><span class=\"ltx_FATAL\">".to_string() + &line + "</span>"
+      } else if line.starts_with("Conversion complete:")
+        || line.starts_with("Post-processing complete:")
+      {
+        // provide a colored final status
+        if line.contains(" fatal") {
+          "</p><p class=\"ltx_p\"><span class=\"ltx_FATAL\">".to_string() + &line + "</span>"
+        } else if line.contains(" error") {
+          "</p><p class=\"ltx_p\"><span class=\"ltx_ERROR\">".to_string() + &line + "</span>"
+        } else if line.contains(" warning") {
+          "</p><p class=\"ltx_p\"><span class=\"ltx_WARNING\">".to_string() + &line + "</span>"
+        } else {
+          "</p><p class=\"ltx_p\"><span class=\"ltx_INFO\">".to_string() + &line + "</span>"
+        }
+      } else {
+        line
+      }
+    })
+    .collect::<Vec<_>>()
+    .join("<br>\n")
+    + r###"
+      </p>
+    </div>
+  </section>
+</article>
+</div></div>
+</body>
+</html>"###
 }
 
 fn build_paper_path(field_opt: Option<&str>, id: &str) -> Option<PathBuf> {
