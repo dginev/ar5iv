@@ -1,4 +1,5 @@
 use regex::{Captures, Regex};
+use rocket::http::ContentType;
 use rocket::tokio::task::spawn_blocking;
 use rocket_db_pools::Connection;
 use std::fs::File;
@@ -11,7 +12,8 @@ use crate::paper_order::AR5IV_PAPERS_ROOT_DIR;
 
 pub static LOG_FILENAME: &'static str = "cortex.log";
 pub static ARXMLIV_CSS_URL: &'static str =
-  "//cdn.jsdelivr.net/gh/dginev/arxmliv-css@0.4.1/css/arxmliv.css";
+  "//cdn.jsdelivr.net/gh/dginev/arxmliv-css@0.4.4/css/arxmliv.css";
+pub static AR5IV_CSS_URL: &'static str = "/assets/ar5iv.css";
 
 lazy_static! {
   static ref END_ARTICLE: Regex = Regex::new("</article>").unwrap();
@@ -85,7 +87,9 @@ pub fn branded_ar5iv_html(
       prev_id
     )
   } else {
-    String::new()
+    String::from(
+      "<a href=\"javascript: void(0)\" class=\"ar5iv-nav-button ar5iv-nav-button-prev\">◄</a>",
+    )
   };
   let next_html = if let Some(next_id) = next {
     format!(
@@ -93,20 +97,24 @@ pub fn branded_ar5iv_html(
       next_id
     )
   } else {
-    String::new()
+    String::from(
+      "<a href=\"javascript: void(0)\" class=\"ar5iv-nav-button ar5iv-nav-button-next\">►</a>",
+    )
   };
   let ar5iv_footer = "<div class=\"ar5iv-footer\">".to_string()
     + &prev_html
     + r###"
-    <a href="/"><img height="64" src="/assets/ar5iv.png"></a>
-       
-    <a href="https://arxiv.org/abs/"###
-    + &id_arxiv
-    + r###"" class="ar5iv-text-button">View original paper on arXiv</a>
-       
+    <a class="ar5iv-home-button" href="/"><img height="64" src="/assets/ar5iv.png"></a>       
     <a href="/log/"###
     + &id_arxiv
-    + r###"" class="ar5iv-text-button"">Read conversion report</a>
+    + r###"" class="ar5iv-text-button">Conversion<br>report</a>
+    <a href="/source/"###
+    + &id_arxiv
+    + r###".zip" class="ar5iv-text-button">Download&nbsp;TeX<br>source</a>
+    <a href="https://arxiv.org/abs/"###
+    + &id_arxiv
+    + r###"" class="ar5iv-text-button arxiv-ui-theme">View&nbsp;original on&nbsp;arXiv</a>
+
     "###
     + &next_html
     + r###"
@@ -126,12 +134,14 @@ pub fn branded_ar5iv_html(
     </script>
     </body>"###;
 
-  let arxmliv_css = String::from("<link media=\"all\" rel=\"stylesheet\" href=\"")
+  let css = String::from("<link media=\"all\" rel=\"stylesheet\" href=\"")
     + ARXMLIV_CSS_URL
+    + "\"><link media=\"all\" rel=\"stylesheet\" href=\""
+    + AR5IV_CSS_URL
     + "\">
 </head>";
 
-  main_content = END_HEAD.replace(&main_content, arxmliv_css).to_string();
+  main_content = END_HEAD.replace(&main_content, css).to_string();
   main_content = END_BODY
     .replace(&main_content, maybe_mathjax_js)
     .to_string();
@@ -266,6 +276,22 @@ pub async fn assemble_paper_asset(
   }
 }
 
+pub fn fetch_zip(field_opt: Option<&str>, id: &str) -> Option<(ContentType, Vec<u8>)> {
+  if let Some(paper_path) = build_source_zip_path(field_opt, id) {
+    let zipf = File::open(&paper_path).unwrap();
+    let mut reader = BufReader::new(zipf);
+    let mut payload = Vec::new();
+    reader.read_to_end(&mut payload).ok();
+    if payload.is_empty() {
+      None
+    } else {
+      Some((ContentType::ZIP, payload))
+    }
+  } else {
+    None
+  }
+}
+
 pub async fn assemble_log(field_opt: Option<&str>, id: &str) -> Option<String> {
   if let Some(paper_path) = build_paper_path(field_opt, id) {
     if let Some(mut zip) = spawn_blocking(move || {
@@ -298,19 +324,56 @@ pub async fn assemble_log(field_opt: Option<&str>, id: &str) -> Option<String> {
 <body>
 <div class="ltx_page_main">
 <div class="ltx_page_content">
-<article
-        <section id="latexml-conversion-report" class="ltx_section ltx_conversion_report">
-    <h2 class="ltx_title ltx_title_section">CorTeX Conversion Report</h2>
+<article class="ltx_document ltx_authors_1line">
+  <section id="latexml-conversion-report" class="ltx_section ltx_conversion_report">
+    <h2 class="ltx_title ltx_title_section">LaTeXML conversion report (<a class="ltx_ref" href="/html/"###
+          + &id_arxiv
+          + "\">"
+          + &id_arxiv
+          + r###"</a>)</h2>
     <div id="S1.p1" class="ltx_para">
-    <p class="ltx_p">
+      <p class="ltx_p">
 "### + &conversion_report
           .split('\n')
+          .map(|line| {
+            let line = line.replace('\t', "&emsp;");
+            if line.starts_with("Warning:") {
+              "</p><p class=\"ltx_p\"><span class=\"ltx_WARNING\">".to_string() + &line + "</span>"
+            } else if line.starts_with("Error:") {
+              "</p><p class=\"ltx_p\"><span class=\"ltx_ERROR\">".to_string() + &line + "</span>"
+            } else if line.starts_with("Info:") {
+              "</p><p class=\"ltx_p\"><span class=\"ltx_INFO\">".to_string() + &line + "</span>"
+            } else if line.starts_with("Fatal:") {
+              "</p><p class=\"ltx_p\"><span class=\"ltx_FATAL\">".to_string() + &line + "</span>"
+            } else if line.starts_with("Conversion complete:")
+              || line.starts_with("Post-processing complete:")
+            {
+              // provide a colored final status
+              if line.contains(" fatal") {
+                "</p><p class=\"ltx_p\"><span class=\"ltx_FATAL\">".to_string() + &line + "</span>"
+              } else if line.contains(" error") {
+                "</p><p class=\"ltx_p\"><span class=\"ltx_ERROR\">".to_string() + &line + "</span>"
+              } else if line.contains(" warning") {
+                "</p><p class=\"ltx_p\"><span class=\"ltx_WARNING\">".to_string()
+                  + &line
+                  + "</span>"
+              } else {
+                "</p><p class=\"ltx_p\"><span class=\"ltx_INFO\">".to_string() + &line + "</span>"
+              }
+            } else {
+              line
+            }
+          })
           .collect::<Vec<_>>()
-          .join("</p><p class=\"ltx_p\">")
+          .join("<br>\n")
           + r###"
-    </p>
+      </p>
     </div>
-</section>"###;
+  </section>
+</article>
+</div></div>
+</body>
+</html>"###;
         Some(html_page)
       } else {
         None
@@ -334,6 +397,24 @@ fn build_paper_path(field_opt: Option<&str>, id: &str) -> Option<PathBuf> {
       None => "",
     },
     id
+  );
+  let paper_path = Path::new(&paper_path_str);
+  if paper_path.exists() {
+    Some(paper_path.to_path_buf())
+  } else {
+    None
+  }
+}
+
+fn build_source_zip_path(field_opt: Option<&str>, id: &str) -> Option<PathBuf> {
+  let id_base = &id[0..4];
+  let field = match field_opt {
+    Some(s) => s,
+    None => "",
+  };
+  let paper_path_str = format!(
+    "{}/{}/{}{}/{}{}.zip",
+    *AR5IV_PAPERS_ROOT_DIR, id_base, field, id, field, id
   );
   let paper_path = Path::new(&paper_path_str);
   if paper_path.exists() {

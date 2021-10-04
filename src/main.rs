@@ -14,6 +14,7 @@ use rocket_dyn_templates::Template;
 use ar5iv::cache::{
   assemble_log_with_cache, assemble_paper_asset_with_cache, assemble_paper_with_cache, Cache,
 };
+use ar5iv::dirty_templates::fetch_zip;
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -22,6 +23,7 @@ extern crate lazy_static;
 use regex::Regex;
 lazy_static! {
   static ref TRAILING_PDF_EXT: Regex = Regex::new("[.]pdf$").unwrap();
+  static ref TRAILING_ZIP_EXT: Regex = Regex::new("[.]zip$").unwrap();
 }
 
 #[get("/")]
@@ -194,6 +196,17 @@ async fn get_field_log(
   }
 }
 
+#[get("/source/<id>")]
+async fn get_source_zip(id: &str) -> Option<(ContentType, Vec<u8>)> {
+  let id_core: String = (*TRAILING_ZIP_EXT.replace(&id, "")).to_owned();
+  fetch_zip(None, &id_core)
+}
+#[get("/source/<field>/<id>", rank = 2)]
+async fn get_field_source_zip(field: &str, id: &str) -> Option<(ContentType, Vec<u8>)> {
+  let id_core: String = (*TRAILING_ZIP_EXT.replace(&id, "")).to_owned();
+  fetch_zip(Some(field), &id_core)
+}
+
 #[catch(default)]
 fn default_catcher(status: Status, req: &Request<'_>) -> status::Custom<String> {
   let msg = format!("{} ({})", status, req.uri());
@@ -216,6 +229,8 @@ fn rocket() -> _ {
         get_field_html,
         get_log,
         get_field_log,
+        get_source_zip,
+        get_field_source_zip,
         get_paper_asset,
         get_paper_subdir_asset,
         get_paper_subsubdir_asset,
