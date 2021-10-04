@@ -2,6 +2,12 @@ use crate::dirty_templates::{assemble_log, assemble_paper, assemble_paper_asset,
 use rocket::http::ContentType;
 use rocket_db_pools::deadpool_redis::redis::cmd;
 use rocket_db_pools::deadpool_redis::ConnectionWrapper;
+use rocket_db_pools::Connection;
+use rocket_db_pools::{deadpool_redis, Database};
+
+#[derive(Database)]
+#[database("memdb")]
+pub struct Cache(deadpool_redis::Pool);
 
 pub async fn set_cached(conn: &mut ConnectionWrapper, key: &str, val: &str) -> Result<(), ()> {
   cmd("SET")
@@ -66,29 +72,26 @@ pub async fn hget_cached(
 }
 
 pub async fn assemble_paper_with_cache(
-  conn: &mut ConnectionWrapper,
+  mut conn_opt: Option<Connection<Cache>>,
   field_opt: Option<&str>,
   id: &str,
 ) -> Option<String> {
-  let key = match field_opt {
-    Some(ref field) => field.to_string() + id,
-    None => id.to_string(),
+  let cached = match conn_opt {
+    Some(ref mut conn) => {
+      let key = build_arxiv_id(&field_opt, id);
+      get_cached(&mut *conn, &key).await.unwrap_or_default()
+    }
+    None => String::default(),
   };
-  let cached = get_cached(&mut *conn, &key).await.unwrap_or_default();
   if !cached.is_empty() {
     Some(cached)
   } else {
-    if let Some(paper) = assemble_paper(conn, field_opt, id).await {
-      set_cached(&mut *conn, &key, paper.as_str()).await.ok();
-      Some(paper)
-    } else {
-      None
-    }
+    assemble_paper(conn_opt, field_opt, id).await
   }
 }
 
 pub async fn assemble_paper_asset_with_cache(
-  conn: &mut ConnectionWrapper,
+  mut conn_opt: Option<Connection<Cache>>,
   field_opt: Option<&str>,
   id: &str,
   filename: &str,
@@ -97,14 +100,19 @@ pub async fn assemble_paper_asset_with_cache(
     Some(ref field) => field.to_string() + id + "/" + filename,
     None => id.to_string() + "/" + filename,
   };
-  let cached = get_cached_asset(&mut *conn, &key).await.unwrap_or_default();
+  let cached = match conn_opt {
+    Some(ref mut conn) => get_cached_asset(&mut *conn, &key).await.unwrap_or_default(),
+    None => Vec::new(),
+  };
   let asset_opt = if !cached.is_empty() {
     Some(cached)
   } else if let Some(asset) = assemble_paper_asset(field_opt, id, filename).await {
     if asset.is_empty() {
       None
     } else {
-      set_cached_asset(&mut *conn, &key, &asset).await.ok();
+      if let Some(ref mut conn) = conn_opt {
+        set_cached_asset(&mut *conn, &key, &asset).await.ok();
+      }
       Some(asset)
     }
   } else {
@@ -121,24 +129,34 @@ pub async fn assemble_paper_asset_with_cache(
 }
 
 pub async fn assemble_log_with_cache(
-  conn: &mut ConnectionWrapper,
+  mut conn_opt: Option<Connection<Cache>>,
   field_opt: Option<&str>,
   id: &str,
 ) -> Option<String> {
-  let key = match field_opt {
-    Some(ref field) => field.to_string() + id,
-    None => id.to_string(),
-  } + "/"
-    + &LOG_FILENAME;
-  let cached = get_cached(&mut *conn, &key).await.unwrap_or_default();
+  let key = build_arxiv_id(&field_opt, id) + "/" + &LOG_FILENAME;
+  let cached = match conn_opt {
+    Some(ref mut conn) => get_cached(&mut *conn, &key).await.unwrap_or_default(),
+    None => String::new(),
+  };
   if !cached.is_empty() {
     Some(cached)
   } else {
     if let Some(paper) = assemble_log(field_opt, id).await {
-      set_cached(&mut *conn, &key, paper.as_str()).await.ok();
+      if let Some(mut conn) = conn_opt {
+        set_cached(&mut conn, &key, paper.as_str()).await.ok();
+      }
       Some(paper)
     } else {
       None
     }
+  }
+}
+
+/// We universally use the arxiv id scheme for both arxiv id refs and cache keys.
+pub fn build_arxiv_id(field_opt: &Option<&str>, id: &str) -> String {
+  if let Some(ref field) = field_opt {
+    format!("{}/{}", field, id)
+  } else {
+    id.to_owned()
   }
 }

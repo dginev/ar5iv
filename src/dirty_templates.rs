@@ -1,12 +1,12 @@
 use regex::{Captures, Regex};
 use rocket::tokio::task::spawn_blocking;
-use rocket_db_pools::deadpool_redis::ConnectionWrapper;
+use rocket_db_pools::Connection;
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 use zip::ZipArchive;
 
-use crate::cache::{hget_cached, set_cached, set_cached_asset};
+use crate::cache::{build_arxiv_id, hget_cached, set_cached, set_cached_asset, Cache};
 use crate::paper_order::AR5IV_PAPERS_ROOT_DIR;
 
 pub static LOG_FILENAME: &'static str = "cortex.log";
@@ -22,12 +22,13 @@ lazy_static! {
   static ref HEX_JPG: Regex = Regex::new(r"^ffd8ffe0").unwrap();
   static ref HEX_PNG: Regex = Regex::new(r"^89504e47").unwrap();
   static ref HEX_GIF: Regex = Regex::new(r"^47494638").unwrap();
+  static ref START_FOOTER: Regex = Regex::new("<footer class=\"ltx_page_footer\">").unwrap();
 }
 
 pub fn branded_ar5iv_html(
   mut main_content: String,
   id: &str,
-  id_arxiv: String,
+  id_arxiv: &str,
   prev: Option<String>,
   next: Option<String>,
 ) -> String {
@@ -79,34 +80,41 @@ pub fn branded_ar5iv_html(
 
   // If a conversion log is present, attach it as a trailing section
   let prev_html = if let Some(prev_id) = prev {
-    format!("<a href=\"/html/{}\">←</a>", prev_id)
+    format!(
+      "<a href=\"/html/{}\" class=\"ar5iv-nav-button ar5iv-nav-button-prev\">◄</a>",
+      prev_id
+    )
   } else {
     String::new()
   };
   let next_html = if let Some(next_id) = next {
-    format!("<a href=\"/html/{}\">→</a>", next_id)
+    format!(
+      "<a href=\"/html/{}\" class=\"ar5iv-nav-button ar5iv-nav-button-next\">►</a>",
+      next_id
+    )
   } else {
     String::new()
   };
-  let ar5iv_logos = "<div class=\"ar5iv-logos\">".to_string()
+  let ar5iv_footer = "<div class=\"ar5iv-footer\">".to_string()
     + &prev_html
     + r###"
     <a href="/"><img height="64" src="/assets/ar5iv.png"></a>
        
     <a href="https://arxiv.org/abs/"###
     + &id_arxiv
-    + r###"" class="arxiv-button">View original paper on arXiv</a>
+    + r###"" class="ar5iv-text-button">View original paper on arXiv</a>
        
     <a href="/log/"###
     + &id_arxiv
-    + r###"" class="arxiv-button"">Read conversion report</a>
+    + r###"" class="ar5iv-text-button"">Read conversion report</a>
     "###
     + &next_html
     + r###"
-</div>
-</article>
+</div><footer class="ltx_page_footer">
 "###;
-  main_content = END_ARTICLE.replace(&main_content, ar5iv_logos).to_string();
+  main_content = START_FOOTER
+    .replace(&main_content, ar5iv_footer)
+    .to_string();
 
   let maybe_mathjax_js = r###"
     <script>
@@ -131,7 +139,7 @@ pub fn branded_ar5iv_html(
 }
 
 pub async fn assemble_paper(
-  conn: &mut ConnectionWrapper,
+  mut conn_opt: Option<Connection<Cache>>,
   field_opt: Option<&str>,
   id: &str,
 ) -> Option<String> {
@@ -139,11 +147,7 @@ pub async fn assemble_paper(
   // TODO: Can the tokio::fs::File be swapped in here for some benefit? Does the ZIP crate allow for that?
   //       I couldn't easily understand the answer from what I found online.
   if let Some(paper_path) = build_paper_path(field_opt, id) {
-    let id_arxiv = if let Some(ref field) = field_opt {
-      format!("{}/{}", field, id)
-    } else {
-      id.to_owned()
-    };
+    let id_arxiv = build_arxiv_id(&field_opt, id);
     if let Some(mut zip) = spawn_blocking(move || {
       let zipf = File::open(&paper_path).unwrap();
       let reader = BufReader::new(zipf);
@@ -186,20 +190,27 @@ pub async fn assemble_paper(
       // if we found assets, cache them.
       for (key, val) in assets.into_iter() {
         let cache_key = format!("{}/{}", id_arxiv, &key);
-        set_cached_asset(conn, cache_key.as_str(), &val).await.ok();
+        if let Some(ref mut conn) = conn_opt {
+          set_cached_asset(conn, cache_key.as_str(), &val).await.ok();
+        }
       }
       // the log is dealt with under the /log/ route
       // but since we have it here, cache it
       if !log.is_empty() {
         let cache_key = format!("{}/{}", id_arxiv, LOG_FILENAME);
-        set_cached(conn, &cache_key, &log).await.ok();
+        if let Some(ref mut conn) = conn_opt {
+          set_cached(conn, &cache_key, &log).await.ok();
+        }
       }
-      let mut pieces: Vec<String> =
+      let mut pieces: Vec<String> = if let Some(ref mut conn) = conn_opt {
         if let Some(adjacent_papers) = hget_cached(conn, "paper_order", &id_arxiv).await.ok() {
           adjacent_papers.split(";").map(|x| x.to_string()).collect()
         } else {
           Vec::new()
-        };
+        }
+      } else {
+        Vec::new()
+      };
       let next = if pieces.len() < 2 {
         None
       } else {
@@ -211,7 +222,13 @@ pub async fn assemble_paper(
         Some(pieces.pop().unwrap())
       };
       // Lastly, build a single coherent HTML page.
-      Some(branded_ar5iv_html(html, id, id_arxiv, prev, next))
+      let branded_html = branded_ar5iv_html(html, id, &id_arxiv, prev, next);
+      if let Some(ref mut conn) = conn_opt {
+        set_cached(&mut *conn, &id_arxiv, branded_html.as_str())
+          .await
+          .ok();
+      }
+      Some(branded_html)
     } else {
       None
     }

@@ -8,11 +8,11 @@ use rocket::http::Status;
 use rocket::response::{content, status, Redirect};
 use rocket::Request;
 use rocket_db_pools::Connection;
-use rocket_db_pools::{deadpool_redis, Database};
+use rocket_db_pools::Database;
 use rocket_dyn_templates::Template;
 
 use ar5iv::cache::{
-  assemble_log_with_cache, assemble_paper_asset_with_cache, assemble_paper_with_cache,
+  assemble_log_with_cache, assemble_paper_asset_with_cache, assemble_paper_with_cache, Cache,
 };
 use std::collections::HashMap;
 use std::path::Path;
@@ -23,10 +23,6 @@ use regex::Regex;
 lazy_static! {
   static ref TRAILING_PDF_EXT: Regex = Regex::new("[.]pdf$").unwrap();
 }
-
-#[derive(Database)]
-#[database("memdb")]
-pub struct Cache(deadpool_redis::Pool);
 
 #[get("/")]
 async fn about() -> Template {
@@ -43,10 +39,10 @@ async fn favicon() -> Option<NamedFile> {
 
 #[get("/html/<id>")]
 async fn get_html(
-  mut conn: Connection<Cache>,
+  conn: Option<Connection<Cache>>,
   id: &str,
 ) -> Result<content::RawHtml<String>, Template> {
-  if let Some(paper) = assemble_paper_with_cache(&mut conn, None, id).await {
+  if let Some(paper) = assemble_paper_with_cache(conn, None, id).await {
     Ok(content::RawHtml(paper))
   } else {
     let mut map: HashMap<String, String> = HashMap::new();
@@ -56,11 +52,11 @@ async fn get_html(
 }
 #[get("/html/<field>/<id>")]
 async fn get_field_html(
-  mut conn: Connection<Cache>,
+  conn: Option<Connection<Cache>>,
   field: &str,
   id: &str,
 ) -> Result<content::RawHtml<String>, Template> {
-  if let Some(paper) = assemble_paper_with_cache(&mut conn, Some(field), id).await {
+  if let Some(paper) = assemble_paper_with_cache(conn, Some(field), id).await {
     Ok(content::RawHtml(paper))
   } else {
     let mut map: HashMap<String, String> = HashMap::new();
@@ -71,56 +67,56 @@ async fn get_field_html(
 
 #[get("/html/<id>/assets/<filename>")]
 async fn get_paper_asset(
-  mut conn: Connection<Cache>,
+  conn: Option<Connection<Cache>>,
   id: &str,
   filename: &str,
 ) -> Option<(ContentType, Vec<u8>)> {
-  assemble_paper_asset_with_cache(&mut conn, None, id, filename).await
+  assemble_paper_asset_with_cache(conn, None, id, filename).await
 }
 #[get("/html/<field>/<id>/assets/<filename>", rank = 2)]
 async fn get_field_paper_asset(
-  mut conn: Connection<Cache>,
+  conn: Option<Connection<Cache>>,
   field: &str,
   id: &str,
   filename: &str,
 ) -> Option<(ContentType, Vec<u8>)> {
-  assemble_paper_asset_with_cache(&mut conn, Some(field), id, filename).await
+  assemble_paper_asset_with_cache(conn, Some(field), id, filename).await
 }
 #[get("/html/<id>/assets/<subdir>/<filename>")]
 async fn get_paper_subdir_asset(
-  mut conn: Connection<Cache>,
+  conn: Option<Connection<Cache>>,
   id: &str,
   subdir: String,
   filename: &str,
 ) -> Option<(ContentType, Vec<u8>)> {
   let compound_name = subdir + "/" + filename;
-  assemble_paper_asset_with_cache(&mut conn, None, id, &compound_name).await
+  assemble_paper_asset_with_cache(conn, None, id, &compound_name).await
 }
 #[get("/html/<id>/assets/<subdir>/<subsubdir>/<filename>")]
 async fn get_paper_subsubdir_asset(
-  mut conn: Connection<Cache>,
+  conn: Option<Connection<Cache>>,
   id: &str,
   subdir: String,
   subsubdir: &str,
   filename: &str,
 ) -> Option<(ContentType, Vec<u8>)> {
   let compound_name = subdir + "/" + subsubdir + "/" + filename;
-  assemble_paper_asset_with_cache(&mut conn, None, id, &compound_name).await
+  assemble_paper_asset_with_cache(conn, None, id, &compound_name).await
 }
 #[get("/html/<field>/<id>/assets/<subdir>/<filename>", rank = 2)]
 async fn get_field_paper_subdir_asset(
-  mut conn: Connection<Cache>,
+  conn: Option<Connection<Cache>>,
   field: &str,
   id: &str,
   subdir: String,
   filename: &str,
 ) -> Option<(ContentType, Vec<u8>)> {
   let compound_name = subdir + "/" + filename;
-  assemble_paper_asset_with_cache(&mut conn, Some(field), id, &compound_name).await
+  assemble_paper_asset_with_cache(conn, Some(field), id, &compound_name).await
 }
 #[get("/html/<field>/<id>/assets/<subdir>/<subsubdir>/<filename>", rank = 2)]
 async fn get_field_paper_subsubdir_asset(
-  mut conn: Connection<Cache>,
+  conn: Option<Connection<Cache>>,
   field: &str,
   id: &str,
   subdir: String,
@@ -128,7 +124,7 @@ async fn get_field_paper_subsubdir_asset(
   filename: &str,
 ) -> Option<(ContentType, Vec<u8>)> {
   let compound_name = subdir + "/" + subsubdir + "/" + filename;
-  assemble_paper_asset_with_cache(&mut conn, Some(field), id, &compound_name).await
+  assemble_paper_asset_with_cache(conn, Some(field), id, &compound_name).await
 }
 
 #[get("/abs/<field>/<id>")]
@@ -172,10 +168,10 @@ fn general_not_found(req: &Request) -> Template {
 
 #[get("/log/<id>")]
 async fn get_log(
-  mut conn: Connection<Cache>,
+  conn: Option<Connection<Cache>>,
   id: &str,
 ) -> Result<content::RawHtml<String>, Template> {
-  if let Some(paper) = assemble_log_with_cache(&mut conn, None, id).await {
+  if let Some(paper) = assemble_log_with_cache(conn, None, id).await {
     Ok(content::RawHtml(paper))
   } else {
     let mut map: HashMap<String, String> = HashMap::new();
@@ -185,11 +181,11 @@ async fn get_log(
 }
 #[get("/log/<field>/<id>")]
 async fn get_field_log(
-  mut conn: Connection<Cache>,
+  conn: Option<Connection<Cache>>,
   field: &str,
   id: &str,
 ) -> Result<content::RawHtml<String>, Template> {
-  if let Some(paper) = assemble_log_with_cache(&mut conn, Some(field), id).await {
+  if let Some(paper) = assemble_log_with_cache(conn, Some(field), id).await {
     Ok(content::RawHtml(paper))
   } else {
     let mut map: HashMap<String, String> = HashMap::new();
