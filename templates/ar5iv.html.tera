@@ -45,8 +45,10 @@
                     class="ltx_font_bold">X</span>
                   to a <span style="color:#e44d26">5</span></p>
                 <ul style="list-style-type: circle;">
-                  <li>https://ar<span class="ltx_font_bold">x</span>iv.org/abs/1910.06709</li>
-                  <li>https://ar<span style="color:#e44d26">5</span>iv.org/abs/1910.06709</li>
+                  <li><a class="ltx_ref" style="border:none;" href="https://arxiv.org/abs/1910.06709">https://ar<span
+                        class="ltx_font_bold">x</span>iv.org/abs/1910.06709</a></li>
+                  <li><a class="ltx_ref" style="border:none;" href="https://ar5iv.org/abs/1910.06709">https://ar<span
+                        style="color:#e44d26">5</span>iv.org/abs/1910.06709</a></li>
                 </ul>
               </li>
             </ul>
