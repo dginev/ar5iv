@@ -113,7 +113,7 @@ pub fn branded_ar5iv_html(
     + r###".zip" class="ar5iv-text-button">Download&nbsp;TeX<br>source</a>
     <a href="https://arxiv.org/abs/"###
     + &id_arxiv
-    + r###"" class="ar5iv-text-button arxiv-ui-theme">View&nbsp;original on&nbsp;arXiv</a>
+    + r###"" class="ar5iv-text-button arxiv-ui-theme">View&nbsp;original<br>on&nbsp;arXiv</a>
 
     "###
     + &next_html
