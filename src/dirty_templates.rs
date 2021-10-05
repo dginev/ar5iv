@@ -21,6 +21,7 @@ lazy_static! {
   static ref START_PAGE_CONTENT: Regex = Regex::new("<div class=\"ltx_page_content\">").unwrap();
   static ref END_BODY: Regex = Regex::new("</body>").unwrap();
   static ref SRC_ATTR: Regex = Regex::new(" src=\"([^\"]+)").unwrap();
+  static ref DATA_SVG_ATTR: Regex = Regex::new(" data=\"([^\"]+)[.]svg").unwrap();
   static ref HEX_JPG: Regex = Regex::new(r"^ffd8ffe0").unwrap();
   static ref HEX_PNG: Regex = Regex::new(r"^89504e47").unwrap();
   static ref HEX_GIF: Regex = Regex::new(r"^47494638").unwrap();
@@ -62,20 +63,28 @@ pub fn branded_ar5iv_html(
 
   // before doing any of our re-branded postprocessing, manage the internal links
   // relativize all src attributes to a current paper directory
-  main_content = SRC_ATTR
-    .replace_all(&main_content, |caps: &Captures| {
-      // leave as-is data URL images and remote sources
+  let main_content_src = SRC_ATTR.replace_all(&main_content, |caps: &Captures| {
+    // leave as-is data URL images and remote sources
+    if caps[1].starts_with("data:") || caps[1].starts_with("http") {
+      String::from(" src=\"") + &caps[1]
+    } else {
+      // there is a catch here in the ar5iv.org setting.
+      // the old ID scheme has an extra component in the relative path, e.g. compare
+      // ./astro-ph/0001016
+      // to the modern
+      // ./2105.04404
+      // so we should *always* use the id *without* the field,
+      // when pointing from within a document to an asset under it.
+      String::from(" src=\"./") + id + "/assets/" + &caps[1]
+    }
+  });
+  main_content = DATA_SVG_ATTR
+    .replace_all(&main_content_src, |caps: &Captures| {
       if caps[1].starts_with("data:") || caps[1].starts_with("http") {
-        String::from(" src=\"") + &caps[1]
+        String::from(" data=\"") + &caps[1] + ".svg"
       } else {
-        // there is a catch here in the ar5iv.org setting.
-        // the old ID scheme has an extra component in the relative path, e.g. compare
-        // ./astro-ph/0001016
-        // to the modern
-        // ./2105.04404
-        // so we should *always* use the id *without* the field,
-        // when pointing from within a document to an asset under it.
-        String::from(" src=\"./") + id + "/assets/" + &caps[1]
+        // as above, the relative paths are tricky, "field" does not need to be used.
+        String::from(" data=\"./") + id + "/assets/" + &caps[1] + ".svg"
       }
     })
     .to_string();
