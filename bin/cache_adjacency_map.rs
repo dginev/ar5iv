@@ -4,7 +4,8 @@ use walkdir::WalkDir;
 fn main() -> redis::RedisResult<()> {
   let client = redis::Client::open("redis://127.0.0.1/")?;
   let mut conn = client.get_connection()?;
-  redis::cmd("DEL").arg("paper_order").query(&mut conn)?;
+  // This isn't really needed as deletions are disruptive on production machines
+  // redis::cmd("DEL").arg("paper_order").query(&mut conn)?;
 
   let mut prev_prev = String::new();
   let mut prev = String::new();
