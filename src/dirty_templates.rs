@@ -50,10 +50,11 @@ pub fn branded_ar5iv_html(
 </head>
 <body>
     <div class="ltx_page_main">
-    <div class="ltx_page_content">
+      <div class="ltx_page_content">
         <article class="ltx_document">
         </article>
-    </div>
+      </div>
+      <footer class="ltx_page_footer"></footer>
     </div>
 </body>
 </html>
