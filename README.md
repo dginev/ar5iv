@@ -1,2 +1,3 @@
 # ar5iv
-A rocket.rs web app for serving arXiv.org articles converted with latexml (via CorTeX)
+
+A web service offering HTML5 articles from [arXiv.org](https://arxiv.org/) as converted with [latexml](https://github.com/brucemiller/LaTeXML), seeded via [CorTeX](https://github.com/dginev/CorTeX) data.
