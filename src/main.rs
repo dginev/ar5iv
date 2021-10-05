@@ -72,7 +72,7 @@ async fn get_paper_asset(
   conn: Option<Connection<Cache>>,
   id: &str,
   filename: &str,
-) -> Option<(ContentType, Vec<u8>)> {
+) -> Result<(ContentType, Vec<u8>), Option<NamedFile>> {
   assemble_paper_asset_with_cache(conn, None, id, filename).await
 }
 #[get("/html/<field>/<id>/assets/<filename>", rank = 2)]
@@ -81,7 +81,7 @@ async fn get_field_paper_asset(
   field: &str,
   id: &str,
   filename: &str,
-) -> Option<(ContentType, Vec<u8>)> {
+) -> Result<(ContentType, Vec<u8>), Option<NamedFile>> {
   assemble_paper_asset_with_cache(conn, Some(field), id, filename).await
 }
 #[get("/html/<id>/assets/<subdir>/<filename>")]
@@ -90,7 +90,7 @@ async fn get_paper_subdir_asset(
   id: &str,
   subdir: String,
   filename: &str,
-) -> Option<(ContentType, Vec<u8>)> {
+) -> Result<(ContentType, Vec<u8>), Option<NamedFile>> {
   let compound_name = subdir + "/" + filename;
   assemble_paper_asset_with_cache(conn, None, id, &compound_name).await
 }
@@ -101,7 +101,7 @@ async fn get_paper_subsubdir_asset(
   subdir: String,
   subsubdir: &str,
   filename: &str,
-) -> Option<(ContentType, Vec<u8>)> {
+) -> Result<(ContentType, Vec<u8>), Option<NamedFile>> {
   let compound_name = subdir + "/" + subsubdir + "/" + filename;
   assemble_paper_asset_with_cache(conn, None, id, &compound_name).await
 }
@@ -112,7 +112,7 @@ async fn get_field_paper_subdir_asset(
   id: &str,
   subdir: String,
   filename: &str,
-) -> Option<(ContentType, Vec<u8>)> {
+) -> Result<(ContentType, Vec<u8>), Option<NamedFile>> {
   let compound_name = subdir + "/" + filename;
   assemble_paper_asset_with_cache(conn, Some(field), id, &compound_name).await
 }
@@ -124,7 +124,7 @@ async fn get_field_paper_subsubdir_asset(
   subdir: String,
   subsubdir: &str,
   filename: &str,
-) -> Option<(ContentType, Vec<u8>)> {
+) -> Result<(ContentType, Vec<u8>), Option<NamedFile>> {
   let compound_name = subdir + "/" + subsubdir + "/" + filename;
   assemble_paper_asset_with_cache(conn, Some(field), id, &compound_name).await
 }

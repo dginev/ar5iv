@@ -1,9 +1,11 @@
 use crate::dirty_templates::{assemble_log, assemble_paper, assemble_paper_asset, LOG_FILENAME};
+use rocket::fs::NamedFile;
 use rocket::http::ContentType;
 use rocket_db_pools::deadpool_redis::redis::cmd;
 use rocket_db_pools::deadpool_redis::ConnectionWrapper;
 use rocket_db_pools::Connection;
 use rocket_db_pools::{deadpool_redis, Database};
+use std::path::Path;
 
 #[derive(Database)]
 #[database("memdb")]
@@ -95,7 +97,7 @@ pub async fn assemble_paper_asset_with_cache(
   field_opt: Option<&str>,
   id: &str,
   filename: &str,
-) -> Option<(ContentType, Vec<u8>)> {
+) -> Result<(ContentType, Vec<u8>), Option<NamedFile>> {
   let key = match field_opt {
     Some(ref field) => field.to_string() + id + "/" + filename,
     None => id.to_string() + "/" + filename,
@@ -105,18 +107,26 @@ pub async fn assemble_paper_asset_with_cache(
     None => Vec::new(),
   };
   let asset_opt = if !cached.is_empty() {
-    Some(cached)
+    Ok(cached)
   } else if let Some(asset) = assemble_paper_asset(field_opt, id, filename).await {
     if asset.is_empty() {
-      None
+      Err(
+        NamedFile::open(Path::new("assets/missing_image.png"))
+          .await
+          .ok(),
+      )
     } else {
       if let Some(ref mut conn) = conn_opt {
         set_cached_asset(&mut *conn, &key, &asset).await.ok();
       }
-      Some(asset)
+      Ok(asset)
     }
   } else {
-    None
+    Err(
+      NamedFile::open(Path::new("assets/missing_image.png"))
+        .await
+        .ok(),
+    )
   };
 
   asset_opt.map(|asset| {
