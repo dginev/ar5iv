@@ -28,13 +28,28 @@ lazy_static! {
   static ref START_FOOTER: Regex = Regex::new("<footer class=\"ltx_page_footer\">").unwrap();
 }
 
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
+pub enum LatexmlStatus {
+  Ok,
+  Warning,
+  Error,
+  Fatal,
+}
+
 pub fn branded_ar5iv_html(
   mut main_content: String,
   id: &str,
   id_arxiv: &str,
+  status: LatexmlStatus,
   prev: Option<String>,
   next: Option<String>,
 ) -> String {
+  let status_css_class = match status {
+    LatexmlStatus::Ok => "ar5iv-severity-ok",
+    LatexmlStatus::Warning => "ar5iv-severity-warning",
+    LatexmlStatus::Error => "ar5iv-severity-error",
+    LatexmlStatus::Fatal => "ar5iv-severity-fatal",
+  };
   // ensure main_content is a string if undefined
   if main_content.is_empty() {
     main_content = String::from(
@@ -117,8 +132,10 @@ pub fn branded_ar5iv_html(
     <a class="ar5iv-home-button" href="/"><img height="64" src="/assets/ar5iv.png"></a>       
     <a href="/log/"###
     + &id_arxiv
-    + r###"" class="ar5iv-text-button">Conversion<br>report</a>
-    <a href="/source/"###
+    + r###"" class="ar5iv-text-button "###
+    + status_css_class
+    + r###"">Conversion<br>report</a>
+    <a class="ar5iv-text-button" href="/source/"###
     + &id_arxiv
     + r###".zip" class="ar5iv-text-button">Download&nbsp;TeX<br>source</a>
     <a href="https://arxiv.org/abs/"###
@@ -178,6 +195,7 @@ pub async fn assemble_paper(
     {
       let mut log = String::new();
       let mut html = String::new();
+      let mut status = LatexmlStatus::Fatal;
       let mut assets = Vec::new();
       for i in 0..zip.len() {
         if let Ok(mut file) = zip.by_index(i) {
@@ -217,6 +235,7 @@ pub async fn assemble_paper(
       // the log is dealt with under the /log/ route
       // but since we have it here, cache it
       if !log.is_empty() {
+        status = log_to_status(&log);
         let cache_key = format!("{}/{}", id_arxiv, LOG_FILENAME);
         if let Some(ref mut conn) = conn_opt {
           set_cached(conn, &cache_key, &log_to_html(&log, &id_arxiv))
@@ -244,7 +263,7 @@ pub async fn assemble_paper(
         Some(pieces.pop().unwrap())
       };
       // Lastly, build a single coherent HTML page.
-      let branded_html = branded_ar5iv_html(html, id, &id_arxiv, prev, next);
+      let branded_html = branded_ar5iv_html(html, id, &id_arxiv, status, prev, next);
       if let Some(ref mut conn) = conn_opt {
         set_cached(&mut *conn, &id_arxiv, branded_html.as_str())
           .await
@@ -397,6 +416,39 @@ fn log_to_html(conversion_report: &str, id_arxiv: &str) -> String {
 </div></div>
 </body>
 </html>"###
+}
+
+fn log_to_status(log: &str) -> LatexmlStatus {
+  let mut status = LatexmlStatus::Ok;
+  for line in log.lines() {
+    if line.starts_with("Warning:") && status < LatexmlStatus::Warning {
+      status = LatexmlStatus::Warning;
+    } else if line.starts_with("Error:") && status < LatexmlStatus::Error {
+      status = LatexmlStatus::Error;
+    } else if line.starts_with("Fatal:") && status < LatexmlStatus::Fatal {
+      status = LatexmlStatus::Fatal;
+    } else if line.starts_with("Status:conversion:") {
+      match line.chars().nth(18).unwrap() {
+        '0' => {
+          if status <= LatexmlStatus::Ok {
+            status = LatexmlStatus::Ok
+          }
+        }
+        '1' => {
+          if status < LatexmlStatus::Warning {
+            status = LatexmlStatus::Warning
+          }
+        }
+        '2' => {
+          if status < LatexmlStatus::Error {
+            status = LatexmlStatus::Error
+          }
+        }
+        _ => status = LatexmlStatus::Fatal,
+      }
+    }
+  }
+  status
 }
 
 fn build_paper_path(field_opt: Option<&str>, id: &str) -> Option<PathBuf> {

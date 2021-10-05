@@ -50,3 +50,20 @@ a.arxiv-ui-theme {
   color: white;
   background-color: rgb(179, 27, 27)
 }
+
+.ar5iv-severity-ok::after {
+  content: " (OK)";
+  color: var(--text-color);
+}
+.ar5iv-severity-warning::after {
+  content: " (W)";
+  color: var(--warning-text-color);
+}
+.ar5iv-severity-error::after {
+  content: " (E)";
+  color: var(--error-text-color);
+}
+.ar5iv-severity-fatal::after {
+  content: " (F)";
+  color: var(--fatal-text-color);
+} 
