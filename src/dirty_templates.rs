@@ -105,6 +105,19 @@ pub fn branded_ar5iv_html(
     })
     .to_string();
 
+  // if this is a Fatal conversion, warn readers explicitly.
+  let status_message = if status == LatexmlStatus::Fatal {
+    r###"
+<div class="ltx_document"><div class="ltx_para"><div class="ltx_p"><span class="ltx_ERROR">
+Conversion to HTML had a Fatal error and exited abruptly. This document may be truncated or damaged.
+</span></div></div></div>
+</article>
+"###
+      .to_string()
+  } else {
+    String::new()
+  };
+
   // If a conversion log is present, attach it as a trailing section
   let prev_html = if let Some(prev_id) = prev {
     format!(
@@ -126,7 +139,8 @@ pub fn branded_ar5iv_html(
       "<a href=\"javascript: void(0)\" class=\"ar5iv-nav-button ar5iv-nav-button-next\">►</a>",
     )
   };
-  let ar5iv_footer = "<div class=\"ar5iv-footer\">".to_string()
+  let ar5iv_footer = status_message
+    + "<div class=\"ar5iv-footer\">"
     + &prev_html
     + r###"
     <a class="ar5iv-home-button" href="/"><img height="64" src="/assets/ar5iv.png"></a>       
