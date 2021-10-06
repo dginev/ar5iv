@@ -12,7 +12,7 @@ use crate::paper_order::AR5IV_PAPERS_ROOT_DIR;
 
 pub static LOG_FILENAME: &'static str = "cortex.log";
 pub static ARXMLIV_CSS_URL: &'static str =
-  "//cdn.jsdelivr.net/gh/dginev/arxmliv-css@0.4.4/css/arxmliv.css";
+  "//cdn.jsdelivr.net/gh/dginev/arxmliv-css@0.4.5/css/arxmliv.min.css";
 pub static AR5IV_CSS_URL: &'static str = "/assets/ar5iv.css";
 
 lazy_static! {

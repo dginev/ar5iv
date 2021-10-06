@@ -14,7 +14,7 @@ use rocket_dyn_templates::Template;
 use ar5iv::cache::{
   assemble_log_with_cache, assemble_paper_asset_with_cache, assemble_paper_with_cache, Cache,
 };
-use ar5iv::dirty_templates::fetch_zip;
+use ar5iv::dirty_templates::{fetch_zip, ARXMLIV_CSS_URL};
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -28,7 +28,8 @@ lazy_static! {
 
 #[get("/")]
 async fn about() -> Template {
-  let map: HashMap<String, String> = HashMap::new();
+  let mut map: HashMap<&'static str, &'static str> = HashMap::new();
+  map.insert("ARXMLIV_CSS_URL", ARXMLIV_CSS_URL);
   Template::render("ar5iv", &map)
 }
 
