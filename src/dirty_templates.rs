@@ -10,10 +10,10 @@ use zip::ZipArchive;
 use crate::cache::{build_arxiv_id, hget_cached, set_cached, set_cached_asset, Cache};
 use crate::paper_order::AR5IV_PAPERS_ROOT_DIR;
 
-pub static LOG_FILENAME: &'static str = "cortex.log";
-pub static ARXMLIV_CSS_URL: &'static str =
+pub static LOG_FILENAME: &str = "cortex.log";
+pub static ARXMLIV_CSS_URL: &str =
   "//cdn.jsdelivr.net/gh/dginev/arxmliv-css@0.4.6/css/arxmliv.min.css";
-pub static AR5IV_CSS_URL: &'static str = "/assets/ar5iv.css";
+pub static AR5IV_CSS_URL: &str = "/assets/ar5iv.css";
 
 lazy_static! {
   static ref END_ARTICLE: Regex = Regex::new("</article>").unwrap();
@@ -145,15 +145,15 @@ Conversion to HTML had a Fatal error and exited abruptly. This document may be t
     + r###"
     <a class="ar5iv-home-button" href="/"><img height="64" src="/assets/ar5iv.png"></a>       
     <a href="/log/"###
-    + &id_arxiv
+    + id_arxiv
     + r###"" class="ar5iv-text-button "###
     + status_css_class
     + r###"">Conversion<br>report</a>
     <a class="ar5iv-text-button" href="/source/"###
-    + &id_arxiv
+    + id_arxiv
     + r###".zip" class="ar5iv-text-button">Download&nbsp;TeX<br>source</a>
     <a href="https://arxiv.org/abs/"###
-    + &id_arxiv
+    + id_arxiv
     + r###"" class="ar5iv-text-button arxiv-ui-theme">View&nbsp;original<br>on&nbsp;arXiv</a>
 
     "###
@@ -199,13 +199,12 @@ pub async fn assemble_paper(
   //       I couldn't easily understand the answer from what I found online.
   if let Some(paper_path) = build_paper_path(field_opt, id) {
     let id_arxiv = build_arxiv_id(&field_opt, id);
-    if let Some(mut zip) = spawn_blocking(move || {
+    if let Ok(mut zip) = spawn_blocking(move || {
       let zipf = File::open(&paper_path).unwrap();
       let reader = BufReader::new(zipf);
       ZipArchive::new(reader).unwrap()
     })
     .await
-    .ok()
     {
       let mut log = String::new();
       let mut html = String::new();
@@ -258,8 +257,8 @@ pub async fn assemble_paper(
         }
       }
       let mut pieces: Vec<String> = if let Some(ref mut conn) = conn_opt {
-        if let Some(adjacent_papers) = hget_cached(conn, "paper_order", &id_arxiv).await.ok() {
-          adjacent_papers.split(";").map(|x| x.to_string()).collect()
+        if let Ok(adjacent_papers) = hget_cached(conn, "paper_order", &id_arxiv).await {
+          adjacent_papers.split(';').map(|x| x.to_string()).collect()
         } else {
           Vec::new()
         }
@@ -298,13 +297,12 @@ pub async fn assemble_paper_asset(
   filename: &str,
 ) -> Option<Vec<u8>> {
   if let Some(paper_path) = build_paper_path(field_opt, id) {
-    if let Some(mut zip) = spawn_blocking(move || {
+    if let Ok(mut zip) = spawn_blocking(move || {
       let zipf = File::open(&paper_path).unwrap();
       let reader = BufReader::new(zipf);
       ZipArchive::new(reader).unwrap()
     })
     .await
-    .ok()
     {
       if let Ok(mut asset) = zip.by_name(filename) {
         let mut file_contents = Vec::new();
@@ -339,13 +337,12 @@ pub fn fetch_zip(field_opt: Option<&str>, id: &str) -> Option<(ContentType, Vec<
 
 pub async fn assemble_log(field_opt: Option<&str>, id: &str) -> Option<String> {
   if let Some(paper_path) = build_paper_path(field_opt, id) {
-    if let Some(mut zip) = spawn_blocking(move || {
+    if let Ok(mut zip) = spawn_blocking(move || {
       let zipf = File::open(&paper_path).unwrap();
       let reader = BufReader::new(zipf);
       ZipArchive::new(reader).unwrap()
     })
     .await
-    .ok()
     {
       if let Ok(mut asset) = zip.by_name(LOG_FILENAME) {
         let mut conversion_report: String = String::new();
@@ -372,7 +369,7 @@ fn log_to_html(conversion_report: &str, id_arxiv: &str) -> String {
     r###"<!DOCTYPE html><html>
 <head>
 <title>Conversion report for arXiv article "###,
-  ) + &id_arxiv
+  ) + id_arxiv
     + r###"</title>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <link media="all" rel="stylesheet" href=""###
@@ -385,9 +382,9 @@ fn log_to_html(conversion_report: &str, id_arxiv: &str) -> String {
 <article class="ltx_document ltx_authors_1line">
   <section id="latexml-conversion-report" class="ltx_section ltx_conversion_report">
     <h2 class="ltx_title ltx_title_section">LaTeXML conversion report (<a class="ltx_ref" href="/html/"###
-    + &id_arxiv
+    + id_arxiv
     + "\">"
-    + &id_arxiv
+    + id_arxiv
     + r###"</a>)</h2>
     <div id="S1.p1" class="ltx_para">
       <p class="ltx_p">
@@ -471,10 +468,7 @@ fn build_paper_path(field_opt: Option<&str>, id: &str) -> Option<PathBuf> {
     "{}/{}/{}{}/tex_to_html.zip",
     *AR5IV_PAPERS_ROOT_DIR,
     id_base,
-    match field_opt {
-      Some(s) => s,
-      None => "",
-    },
+    field_opt.unwrap_or(""),
     id
   );
   let paper_path = Path::new(&paper_path_str);
@@ -487,10 +481,7 @@ fn build_paper_path(field_opt: Option<&str>, id: &str) -> Option<PathBuf> {
 
 fn build_source_zip_path(field_opt: Option<&str>, id: &str) -> Option<PathBuf> {
   let id_base = &id[0..4];
-  let field = match field_opt {
-    Some(s) => s,
-    None => "",
-  };
+  let field = field_opt.unwrap_or("");
   let paper_path_str = format!(
     "{}/{}/{}{}/{}{}.zip",
     *AR5IV_PAPERS_ROOT_DIR, id_base, field, id, field, id

@@ -143,22 +143,20 @@ pub async fn assemble_log_with_cache(
   field_opt: Option<&str>,
   id: &str,
 ) -> Option<String> {
-  let key = build_arxiv_id(&field_opt, id) + "/" + &LOG_FILENAME;
+  let key = build_arxiv_id(&field_opt, id) + "/" + LOG_FILENAME;
   let cached = match conn_opt {
     Some(ref mut conn) => get_cached(&mut *conn, &key).await.unwrap_or_default(),
     None => String::new(),
   };
   if !cached.is_empty() {
     Some(cached)
-  } else {
-    if let Some(paper) = assemble_log(field_opt, id).await {
-      if let Some(mut conn) = conn_opt {
-        set_cached(&mut conn, &key, paper.as_str()).await.ok();
-      }
-      Some(paper)
-    } else {
-      None
+  } else if let Some(paper) = assemble_log(field_opt, id).await {
+    if let Some(mut conn) = conn_opt {
+      set_cached(&mut conn, &key, paper.as_str()).await.ok();
     }
+    Some(paper)
+  } else {
+    None
   }
 }
 

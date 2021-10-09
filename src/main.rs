@@ -204,12 +204,12 @@ async fn get_field_log(
 
 #[get("/source/<id>")]
 async fn get_source_zip(id: &str) -> Option<(ContentType, Vec<u8>)> {
-  let id_core: String = (*TRAILING_ZIP_EXT.replace(&id, "")).to_owned();
+  let id_core: String = (*TRAILING_ZIP_EXT.replace(id, "")).to_owned();
   fetch_zip(None, &id_core)
 }
 #[get("/source/<field>/<id>", rank = 2)]
 async fn get_field_source_zip(field: &str, id: &str) -> Option<(ContentType, Vec<u8>)> {
-  let id_core: String = (*TRAILING_ZIP_EXT.replace(&id, "")).to_owned();
+  let id_core: String = (*TRAILING_ZIP_EXT.replace(id, "")).to_owned();
   fetch_zip(Some(field), &id_core)
 }
 
