@@ -48,8 +48,9 @@ async fn get_html(
   if let Some(paper) = assemble_paper_with_cache(conn, None, id).await {
     Ok(content::RawHtml(paper))
   } else {
-    let mut map: HashMap<String, String> = HashMap::new();
-    map.insert("id".to_string(), id.to_string());
+    let mut map: HashMap<&str, &str> = HashMap::new();
+    map.insert("id", id);
+    map.insert("ARXMLIV_CSS_URL", ARXMLIV_CSS_URL);
     Err(Template::render("404", &map))
   }
 }
@@ -62,8 +63,10 @@ async fn get_field_html(
   if let Some(paper) = assemble_paper_with_cache(conn, Some(field), id).await {
     Ok(content::RawHtml(paper))
   } else {
-    let mut map: HashMap<String, String> = HashMap::new();
-    map.insert("id".to_string(), format!("{}/{}", field, id));
+    let mut map: HashMap<&str, &str> = HashMap::new();
+    let arxiv_id = format!("{}/{}", field, id);
+    map.insert("id", &arxiv_id);
+    map.insert("ARXMLIV_CSS_URL", ARXMLIV_CSS_URL);
     Err(Template::render("404", &map))
   }
 }
@@ -161,11 +164,10 @@ async fn assets(name: String) -> Option<NamedFile> {
 
 #[catch(404)]
 fn general_not_found(req: &Request) -> Template {
-  let mut map: HashMap<String, String> = HashMap::new();
-  map.insert(
-    "id".to_string(),
-    req.uri().path().to_string()[1..].to_string(),
-  );
+  let mut map: HashMap<&str, &str> = HashMap::new();
+  let uri_id = req.uri().path().to_string();
+  map.insert("id", &uri_id[1..]);
+  map.insert("ARXMLIV_CSS_URL", ARXMLIV_CSS_URL);
   Template::render("404", &map)
 }
 
@@ -177,8 +179,9 @@ async fn get_log(
   if let Some(paper) = assemble_log_with_cache(conn, None, id).await {
     Ok(content::RawHtml(paper))
   } else {
-    let mut map: HashMap<String, String> = HashMap::new();
-    map.insert("id".to_string(), id.to_string());
+    let mut map: HashMap<&str, &str> = HashMap::new();
+    map.insert("id", id);
+    map.insert("ARXMLIV_CSS_URL", ARXMLIV_CSS_URL);
     Err(Template::render("404", &map))
   }
 }
@@ -191,8 +194,10 @@ async fn get_field_log(
   if let Some(paper) = assemble_log_with_cache(conn, Some(field), id).await {
     Ok(content::RawHtml(paper))
   } else {
-    let mut map: HashMap<String, String> = HashMap::new();
-    map.insert("id".to_string(), format!("{}/{}", field, id));
+    let mut map: HashMap<&str, &str> = HashMap::new();
+    let arxiv_id = format!("{}/{}", field, id);
+    map.insert("id", &arxiv_id);
+    map.insert("ARXMLIV_CSS_URL", ARXMLIV_CSS_URL);
     Err(Template::render("404", &map))
   }
 }
