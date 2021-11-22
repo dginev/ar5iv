@@ -11,9 +11,8 @@ use crate::cache::{build_arxiv_id, hget_cached, set_cached, set_cached_asset, Ca
 use crate::paper_order::AR5IV_PAPERS_ROOT_DIR;
 
 pub static LOG_FILENAME: &str = "cortex.log";
-pub static ARXMLIV_CSS_URL: &str =
-  "//cdn.jsdelivr.net/gh/dginev/arxmliv-css@0.4.6/css/arxmliv.min.css";
-pub static AR5IV_CSS_URL: &str = "/assets/ar5iv.css";
+pub static AR5IV_CSS_URL: &str = "//cdn.jsdelivr.net/gh/dginev/ar5iv-css@0.5.2/css/ar5iv.min.css";
+pub static SITE_CSS_URL: &str = "/assets/ar5iv-site.css";
 
 lazy_static! {
   static ref END_ARTICLE: Regex = Regex::new("</article>").unwrap();
@@ -176,9 +175,9 @@ Conversion to HTML had a Fatal error and exited abruptly. This document may be t
     </body>"###;
 
   let css = String::from("<link media=\"all\" rel=\"stylesheet\" href=\"")
-    + ARXMLIV_CSS_URL
-    + "\"><link media=\"all\" rel=\"stylesheet\" href=\""
     + AR5IV_CSS_URL
+    + "\"><link media=\"all\" rel=\"stylesheet\" href=\""
+    + SITE_CSS_URL
     + "\">
 </head>";
 
@@ -373,7 +372,7 @@ fn log_to_html(conversion_report: &str, id_arxiv: &str) -> String {
     + r###"</title>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <link media="all" rel="stylesheet" href=""###
-    + ARXMLIV_CSS_URL
+    + AR5IV_CSS_URL
     + r###"">
 </head>
 <body>

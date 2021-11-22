@@ -8,7 +8,7 @@
   <meta name="description" content="A generic page for a missing document in ar5iv">
   <meta name="language" content="English">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link media="all" rel="stylesheet" href="{{ARXMLIV_CSS_URL}}">
+  <link media="all" rel="stylesheet" href="{{AR5IV_CSS_URL}}">
   <link media="all" rel="stylesheet" href="/assets/ar5iv.css">
 </head>
 
