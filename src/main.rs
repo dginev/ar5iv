@@ -144,6 +144,17 @@ async fn abs(id: &str) -> Redirect {
   Redirect::to(to_uri)
 }
 
+#[get("/papers/<field>/<id>")]
+async fn vanity_style_field(field: &str, id: &str) -> Redirect {
+  let to_uri = String::from("/html/") + field + "/" + id;
+  Redirect::to(to_uri)
+}
+#[get("/papers/<id>")]
+async fn vanity_style(id: &str) -> Redirect {
+  let to_uri = String::from("/html/") + id;
+  Redirect::to(to_uri)
+}
+
 #[get("/pdf/<field>/<id>")]
 async fn pdf_field(field: &str, id: String) -> Redirect {
   let id_core: String = (*TRAILING_PDF_EXT.replace(&id, "")).to_owned();
@@ -231,6 +242,8 @@ fn rocket() -> _ {
         abs_field,
         pdf,
         pdf_field,
+        vanity_style,
+        vanity_style_field,
         get_html,
         get_field_html,
         get_log,
