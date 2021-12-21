@@ -67,3 +67,29 @@ a.arxiv-ui-theme {
   content: " (F)";
   color: var(--fatal-text-color);
 } 
+
+/* Hide the polyfill dirty work behind a curtain */
+#mathjax-loading-message {
+  display: block;
+  font-size:1.5rem;
+  margin:auto;
+  max-width: 52rem;
+  text-align: center;
+  padding: 6rem;
+}
+#mathjax-loading-spinner {
+  display: block;
+  margin:auto;
+  background-color: white;
+  z-index: 100;
+  border: 16px solid #f3f3f3; /* Light grey */
+  border-top: 16px solid #3498db; /* Blue */
+  border-radius: 50%;
+  width: 6rem;
+  height: 6rem;
+  animation: spin 2s linear infinite;
+}
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}

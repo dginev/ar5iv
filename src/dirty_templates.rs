@@ -163,14 +163,34 @@ Conversion to HTML had a Fatal error and exited abruptly. This document may be t
   main_content = START_FOOTER
     .replace(&main_content, ar5iv_footer)
     .to_string();
-
+  // Hide the polyfill dirty work behind a curtain
   let maybe_mathjax_js = r###"
     <script>
       var canMathML = typeof(MathMLElement) == "function";
       if (!canMathML) {
-      var el = document.createElement("script");
-      el.src = "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js";
-      document.querySelector("head").appendChild(el); }
+        var body = document.querySelector("body");
+        body.firstElementChild.setAttribute('style', 'opacity: 0;');
+        var loading = document.createElement("div");
+        loading.setAttribute("id", "mathjax-loading-spinner");
+        var message = document.createElement("div");
+        message.setAttribute("id", "mathjax-loading-message");
+        message.innerText = "Typesetting Equations...";
+        body.prepend(loading);
+        body.prepend(message);
+
+        var el = document.createElement("script");
+        el.src = "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js";
+        document.querySelector("head").appendChild(el);
+
+        window.MathJax = {
+          startup: {
+            pageReady: () => {
+              return MathJax.startup.defaultPageReady().then(() => {
+                body.removeChild(loading);
+                body.removeChild(message);
+                body.firstElementChild.removeAttribute('style');
+              }); } } };
+      }      
     </script>
     </body>"###;
 
