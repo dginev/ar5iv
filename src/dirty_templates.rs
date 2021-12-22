@@ -424,6 +424,7 @@ fn log_to_html(conversion_report: &str, id_arxiv: &str) -> String {
   ) + id_arxiv
     + r###"</title>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="robots" content="noindex">
 <link media="all" rel="stylesheet" href=""###
     + AR5IV_CSS_URL
     + r###"">
