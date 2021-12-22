@@ -9,6 +9,27 @@ div.ar5iv-footer {
   text-align: center;
   max-width: var(--main-width);
 }
+
+.ar5iv-homepage {
+  position: relative;
+}
+.ar5iv-homepage-content {
+  padding-bottom: 1.5rem;
+}
+footer.ar5iv-homepage-footer {
+  border:none;
+  text-align: center;
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  height: 2.5rem;
+}
+footer.ar5iv-homepage-footer svg {
+  background-color: var(--background-color);
+  color: var(--text-color);
+  filter:initial;
+}
+
 .ar5iv-text-button {
   max-width: 10rem;
   display: inline-block;
