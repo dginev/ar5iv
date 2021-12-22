@@ -32,6 +32,21 @@ div.ar5iv-footer {
   margin-top: 0.1rem;
   vertical-align: top;
 }
+.color-scheme-icon::before {
+  content: "🌙";
+}
+[data-theme="dark"] .color-scheme-icon::before {
+  content: "☀️";
+}
+.ar5iv-toggle-color-scheme {
+  text-decoration: none;
+  display: block;
+  float: left;
+  padding: 0.5rem;
+  margin-top: 0.1rem;
+  color: transparent;  
+  text-shadow: 0 0 0 var(--text-color);
+}
 a.ar5iv-nav-button {
   font-size: 2rem;
   color: var(--link-text-color);
@@ -92,4 +107,10 @@ a.arxiv-ui-theme {
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+
+/* one important override specific to the ar5iv site,
+  to keep the color mode toggle nicely inline */
+.ltx_page_logo {
+  display: inline-block !important;
 }

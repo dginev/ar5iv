@@ -11,7 +11,7 @@ use crate::cache::{build_arxiv_id, hget_cached, set_cached, set_cached_asset, Ca
 use crate::paper_order::AR5IV_PAPERS_ROOT_DIR;
 
 pub static LOG_FILENAME: &str = "cortex.log";
-pub static AR5IV_CSS_URL: &str = "//cdn.jsdelivr.net/gh/dginev/ar5iv-css@0.5.5/css/ar5iv.min.css";
+pub static AR5IV_CSS_URL: &str = "//cdn.jsdelivr.net/gh/dginev/ar5iv-css@0.5.7/css/ar5iv.min.css";
 pub static SITE_CSS_URL: &str = "/assets/ar5iv-site.css";
 
 lazy_static! {
@@ -142,7 +142,7 @@ Conversion to HTML had a Fatal error and exited abruptly. This document may be t
     + "<div class=\"ar5iv-footer\">"
     + &prev_html
     + r###"
-    <a class="ar5iv-home-button" href="/"><img height="64" src="/assets/ar5iv.png"></a>       
+    <a class="ar5iv-home-button" href="/"><img height="64" src="/assets/ar5iv.png"></a>
     <a href="/log/"###
     + id_arxiv
     + r###"" class="ar5iv-text-button "###
@@ -159,12 +159,14 @@ Conversion to HTML had a Fatal error and exited abruptly. This document may be t
     + &next_html
     + r###"
 </div><footer class="ltx_page_footer">
+<a class="ar5iv-toggle-color-scheme" href="javascript:toggleColorScheme()" title="Toggle ar5iv color scheme"><span class="color-scheme-icon"</span></a>
 "###;
   main_content = START_FOOTER
     .replace(&main_content, ar5iv_footer)
     .to_string();
   // Hide the polyfill dirty work behind a curtain
-  let maybe_mathjax_js = r###"
+  let active_js = concat!(
+    r###"
     <script>
       var canMathML = typeof(MathMLElement) == "function";
       if (!canMathML) {
@@ -192,7 +194,40 @@ Conversion to HTML had a Fatal error and exited abruptly. This document may be t
               }); } } };
       }      
     </script>
-    </body>"###;
+    </body>"###,
+    // Thanks to https://stackoverflow.com/questions/56300132/how-to-override-css-prefers-color-scheme-setting
+    // local storage is used to override OS theme settings
+    r###"
+    <script>
+      function detectColorScheme(){
+        var theme="light";
+        var current_theme = localStorage.getItem("ar5iv_theme");
+        if(current_theme){
+          if(current_theme == "dark"){
+            theme = "dark";
+          } }
+        else if(!window.matchMedia) { return false; }
+        else if(window.matchMedia("(prefers-color-scheme: dark)").matches) {
+          theme = "dark"; }
+        if (theme=="dark") {
+          document.documentElement.setAttribute("data-theme", "dark");
+        } else {
+          document.documentElement.setAttribute("data-theme", "light"); } }
+      
+      detectColorScheme();
+      
+      function toggleColorScheme(){
+        var current_theme = localStorage.getItem("ar5iv_theme");
+        if (current_theme) {
+          if (current_theme == "light") {
+            localStorage.setItem("ar5iv_theme", "dark"); }
+          else {
+            localStorage.setItem("ar5iv_theme", "light"); } }
+        else {
+            localStorage.setItem("ar5iv_theme", "dark"); }
+        detectColorScheme(); }
+    </script>"###
+  );
 
   let css = String::from("<link media=\"all\" rel=\"stylesheet\" href=\"")
     + AR5IV_CSS_URL
@@ -202,9 +237,7 @@ Conversion to HTML had a Fatal error and exited abruptly. This document may be t
 </head>";
 
   main_content = END_HEAD.replace(&main_content, css).to_string();
-  main_content = END_BODY
-    .replace(&main_content, maybe_mathjax_js)
-    .to_string();
+  main_content = END_BODY.replace(&main_content, active_js).to_string();
   main_content
 }
 
