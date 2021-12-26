@@ -28,10 +28,12 @@
               <li style="margin-bottom: 2rem;">Converted from TeX with <a class="ltx_ref"
                   href="https://github.com/brucemiller/LaTeXML">LaTeXML</a>.
               </li>
-              <li style="margin-bottom: 2rem;">Sources upto October 2021. <span class="ltx_font_bold">Not</span> a
+              <li style="margin-bottom: 2rem;">Sources upto the end of 2021. <span class="ltx_font_bold">Not</span> a
                 live
                 preview
                 service.</li>
+              <li style="margin-bottom: 2rem;">For articles with multiple revisions, only the initial v1 is made
+                available.</li>
               <li style="margin-bottom: 5rem;"><span class="ltx_font_bold">Goal:</span> incremental improvement until
                 worthy of native arXiv
                 adoption.
