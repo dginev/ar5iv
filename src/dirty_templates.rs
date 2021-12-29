@@ -37,7 +37,6 @@ pub enum LatexmlStatus {
 
 pub fn branded_ar5iv_html(
   mut main_content: String,
-  id: &str,
   id_arxiv: &str,
   status: LatexmlStatus,
   prev: Option<String>,
@@ -76,8 +75,6 @@ pub fn branded_ar5iv_html(
     );
   }
 
-  // before doing any of our re-branded postprocessing, manage the internal links
-  // relativize all src attributes to a current paper directory
   let main_content_src = SRC_ATTR.replace_all(&main_content, |caps: &Captures| {
     // leave as-is data URL images and remote sources
     if caps[1].starts_with("data:") || caps[1].starts_with("http") {
@@ -90,7 +87,9 @@ pub fn branded_ar5iv_html(
       // ./2105.04404
       // so we should *always* use the id *without* the field,
       // when pointing from within a document to an asset under it.
-      String::from(" src=\"./") + id + "/assets/" + &caps[1]
+      //
+      // NEW: Rather than struggle with relativistic issues, let's just do the absolute path.
+      String::from(" src=\"/html/") + &id_arxiv + "/assets/" + &caps[1]
     }
   });
   main_content = DATA_SVG_ATTR
@@ -98,8 +97,7 @@ pub fn branded_ar5iv_html(
       if caps[1].starts_with("data:") || caps[1].starts_with("http") {
         String::from(" data=\"") + &caps[1] + ".svg"
       } else {
-        // as above, the relative paths are tricky, "field" does not need to be used.
-        String::from(" data=\"./") + id + "/assets/" + &caps[1] + ".svg"
+        String::from(" data=\"/html/") + &id_arxiv + "/assets/" + &caps[1] + ".svg"
       }
     })
     .to_string();
@@ -328,7 +326,7 @@ pub async fn assemble_paper(
         Some(pieces.pop().unwrap())
       };
       // Lastly, build a single coherent HTML page.
-      let branded_html = branded_ar5iv_html(html, id, &id_arxiv, status, prev, next);
+      let branded_html = branded_ar5iv_html(html, &id_arxiv, status, prev, next);
       if let Some(ref mut conn) = conn_opt {
         set_cached(&mut *conn, &id_arxiv, branded_html.as_str())
           .await
