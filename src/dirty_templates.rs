@@ -140,7 +140,7 @@ Conversion to HTML had a Fatal error and exited abruptly. This document may be t
     + "<div class=\"ar5iv-footer\">"
     + &prev_html
     + r###"
-    <a class="ar5iv-home-button" href="/"><img height="64" src="/assets/ar5iv.png"></a>
+    <a class="ar5iv-home-button" href="/"><img height="40" src="/assets/ar5iv.png"></a>
     <a href="/log/"###
     + id_arxiv
     + r###"" class="ar5iv-text-button "###
@@ -148,7 +148,7 @@ Conversion to HTML had a Fatal error and exited abruptly. This document may be t
     + r###"">Conversion<br>report</a>
     <a class="ar5iv-text-button" href="/source/"###
     + id_arxiv
-    + r###".zip" class="ar5iv-text-button">Download&nbsp;TeX<br>source</a>
+    + r###".zip" class="ar5iv-text-button">Download<br>TeX&nbsp;source</a>
     <a href="https://arxiv.org/abs/"###
     + id_arxiv
     + r###"" class="ar5iv-text-button arxiv-ui-theme">View&nbsp;original<br>on&nbsp;arXiv</a>

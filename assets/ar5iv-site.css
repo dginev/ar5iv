@@ -36,12 +36,11 @@ footer.ar5iv-homepage-footer svg {
   color:var(--text-color);
   border-radius: 1.1rem;
   font-size: 0.9rem;
-  padding-top: 0.1rem;
-  padding-bottom: 0.1rem;
+  padding-top: 0.05rem;
+  padding-bottom: 0.05rem;
   padding-left: 1rem;
   padding-right: 1rem;
   margin-top: 1rem;
-  margin-right: 1rem;
   vertical-align: top;
   border: none;
   text-decoration: none;
@@ -50,8 +49,11 @@ footer.ar5iv-homepage-footer svg {
 .ar5iv-home-button {
   text-decoration: none;
   display: inline-block;
-  margin-top: 0.1rem;
-  vertical-align: top;
+  margin-top: 0.9rem;
+  vertical-align: bottom;
+}
+.ar5iv-home-button > img {
+  border-radius: 1.1rem;
 }
 .color-scheme-icon::before {
   content: "🌙";
@@ -80,7 +82,7 @@ a.ar5iv-nav-button {
   padding-right: 0.5rem;
 }
 .ar5iv-nav-button-next {
-  padding-left: 0rem;
+  padding-left: 0.5rem;
 }
 a.arxiv-ui-theme {
   color: white;
