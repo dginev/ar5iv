@@ -89,7 +89,7 @@ pub fn branded_ar5iv_html(
       // when pointing from within a document to an asset under it.
       //
       // NEW: Rather than struggle with relativistic issues, let's just do the absolute path.
-      String::from(" src=\"/html/") + &id_arxiv + "/assets/" + &caps[1]
+      String::from(" src=\"/html/") + id_arxiv + "/assets/" + &caps[1]
     }
   });
   main_content = DATA_SVG_ATTR
@@ -97,7 +97,7 @@ pub fn branded_ar5iv_html(
       if caps[1].starts_with("data:") || caps[1].starts_with("http") {
         String::from(" data=\"") + &caps[1] + ".svg"
       } else {
-        String::from(" data=\"/html/") + &id_arxiv + "/assets/" + &caps[1] + ".svg"
+        String::from(" data=\"/html/") + id_arxiv + "/assets/" + &caps[1] + ".svg"
       }
     })
     .to_string();
