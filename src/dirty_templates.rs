@@ -11,7 +11,7 @@ use crate::cache::{build_arxiv_id, hget_cached, set_cached, set_cached_asset, Ca
 use crate::paper_order::AR5IV_PAPERS_ROOT_DIR;
 
 pub static LOG_FILENAME: &str = "cortex.log";
-pub static AR5IV_CSS_URL: &str = "//cdn.jsdelivr.net/gh/dginev/ar5iv-css@0.6.2/css/ar5iv.min.css";
+pub static AR5IV_CSS_URL: &str = "//cdn.jsdelivr.net/gh/dginev/ar5iv-css@0.6.3/css/ar5iv.min.css";
 pub static SITE_CSS_URL: &str = "/assets/ar5iv-site.css";
 
 lazy_static! {
