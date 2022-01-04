@@ -73,6 +73,9 @@ pub fn branded_ar5iv_html(
 </html>
 "###,
     );
+  } else {
+    // ensure we have a lang attribute otherwise, English being most common in arXiv
+    main_content = main_content.replacen("<html>", "<html lang=\"en\">", 1);
   }
 
   let main_content_src = SRC_ATTR.replace_all(&main_content, |caps: &Captures| {
