@@ -4,9 +4,9 @@
 <head>
   <meta http-equiv="Content-Type" content="text/html" />
   <meta charset="utf-8" />
-  <title>ar5iv – towards arXiv articles as HTML5 web documents</title>
+  <title>ar5iv – Articles from arXiv.org as responsive HTML5 web documents</title>
   <meta name="description"
-    content="A development preview of arXiv articles as HTML5 web documents. Converted by the LaTeXML toolkit in the arXMLiv research project.">
+    content="A preview site of arXiv articles as HTML5 web documents. Converted from TeX/LaTeX by the LaTeXML toolkit.">
   <meta name="language" content="English">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link media="all" rel="stylesheet" href="{{AR5IV_CSS_URL}}">
