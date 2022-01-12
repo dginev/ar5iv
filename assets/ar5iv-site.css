@@ -16,6 +16,14 @@ div.ar5iv-footer {
 .ar5iv-homepage-content {
   padding-bottom: 1.5rem;
 }
+.ar5iv-homepage-main-list {
+  list-style-type: circle;
+}
+@media only screen and (max-width: 40.0rem) {
+  .ar5iv-homepage-main-list {
+    padding-left: 1.5rem;
+  }
+}
 footer.ar5iv-homepage-footer {
   border:none;
   text-align: center;
