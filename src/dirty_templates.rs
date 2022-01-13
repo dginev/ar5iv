@@ -25,6 +25,7 @@ lazy_static! {
   static ref HEX_PNG: Regex = Regex::new(r"^89504e47").unwrap();
   static ref HEX_GIF: Regex = Regex::new(r"^47494638").unwrap();
   static ref START_FOOTER: Regex = Regex::new("<footer class=\"ltx_page_footer\">").unwrap();
+  static ref EXTERNAL_HREF: Regex = Regex::new(" href=\"http").unwrap();
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
@@ -104,7 +105,7 @@ pub fn branded_ar5iv_html(
       }
     })
     .to_string();
-
+  main_content = EXTERNAL_HREF.replace_all(&main_content," target=\"_blank\" href=\"http").to_string();
   // if this is a Fatal conversion, warn readers explicitly.
   let status_message = if status == LatexmlStatus::Fatal {
     r###"
@@ -227,9 +228,52 @@ Conversion to HTML had a Fatal error and exited abruptly. This document may be t
         else {
             localStorage.setItem("ar5iv_theme", "dark"); }
         detectColorScheme(); }
-    </script>"###
+    </script>"###,
+    // Let's experiment with an inline bibitem preview 
+    r###"
+    <script>
+    // Auxiliary function, building the preview feature when
+    // an inline citation is clicked
+    function clicked_cite(e) {
+      e.preventDefault();
+      let cite = this.closest('.ltx_cite');
+      let next = cite.nextSibling;
+      if (next && next.nodeType == Node.ELEMENT_NODE && next.getAttribute('class') == "ar5iv-bibitem-preview") {
+        next.remove();
+        return; }
+      // Before adding a preview modal,
+      // cleanup older previews, in case they're still open
+      document.querySelectorAll('span.ar5iv-bibitem-preview').forEach(function(node) {
+        node.remove();
+      })
+      
+      // Create the preview
+      preview = document.createElement('span');
+      preview.setAttribute('class','ar5iv-bibitem-preview');
+      let target = document.getElementById(this.getAttribute('href').slice(1));
+      target.childNodes.forEach(function (child) {
+        preview.append(child.cloneNode(true));
+      });
+      let close_x = document.createElement('button');
+      close_x.setAttribute("aria-label","Close modal for bibliography item preview");
+      close_x.textContent = "×";
+      close_x.setAttribute('class', 'ar5iv-button-close-preview');
+      close_x.setAttribute('onclick','this.parentNode.remove()');
+      preview.append(close_x);
+      preview.querySelectorAll('.ltx_tag_bibitem').forEach(function(node) {
+        node.remove();
+      });
+      cite.parentNode.insertBefore(preview, cite.nextSibling);
+      return;
+    }
+    // Global Document initialization:
+    // - assign the preview feature to all inline citation links
+    document.querySelectorAll(".ltx_cite .ltx_ref").forEach(function (link) {
+      link.addEventListener("click", clicked_cite);
+    });
+    </script>
+    "###
   );
-
   let css = String::from("<link media=\"all\" rel=\"stylesheet\" href=\"")
     + AR5IV_CSS_URL
     + "\"><link media=\"all\" rel=\"stylesheet\" href=\""

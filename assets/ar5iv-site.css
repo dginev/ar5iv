@@ -114,6 +114,28 @@ a.arxiv-ui-theme {
   color: var(--fatal-text-color);
 } 
 
+.ar5iv-bibitem-preview {
+  z-index: 100;
+  position: absolute;
+  background-color: var(--background-color);
+  color: var(--text-color);
+  border: solid 1px var(--border-color);
+  display: block;
+  min-width: 20rem;
+  max-width: 40rem;
+  min-height: 4rem;
+  max-height: 16rem;
+  padding: 0.5rem;
+}
+.ar5iv-button-close-preview {
+  float: right;
+  display: block;
+  margin: 0.2rem 0rem 0rem 0.2rem;
+  background-color: var(--background-color);
+  color: var(--text-color);
+  border: double 2px var(--border-color);
+}
+
 /* Hide the polyfill dirty work behind a curtain */
 #mathjax-loading-message {
   display: block;
