@@ -142,6 +142,10 @@ Conversion to HTML had a Fatal error and exited abruptly. This document may be t
       "<a href=\"javascript: void(0)\" class=\"ar5iv-nav-button ar5iv-nav-button-next\">►</a>",
     )
   };
+    // Hide for now: tex source button
+    // <a class="ar5iv-text-button" href="/source/"###
+    //+ id_arxiv
+    //+ r###".zip" class="ar5iv-text-button">Download<br>TeX&nbsp;source</a>
   let ar5iv_footer = status_message
     + "<div class=\"ar5iv-footer\">"
     + &prev_html
@@ -152,14 +156,9 @@ Conversion to HTML had a Fatal error and exited abruptly. This document may be t
     + r###"" class="ar5iv-text-button "###
     + status_css_class
     + r###"">Conversion<br>report</a>
-    <a class="ar5iv-text-button" href="/source/"###
-    + id_arxiv
-    + r###".zip" class="ar5iv-text-button">Download<br>TeX&nbsp;source</a>
     <a href="https://arxiv.org/abs/"###
     + id_arxiv
-    + r###"" class="ar5iv-text-button arxiv-ui-theme">View&nbsp;original<br>on&nbsp;arXiv</a>
-
-    "###
+    + r###"" class="ar5iv-text-button arxiv-ui-theme">View&nbsp;original<br>on&nbsp;arXiv</a>"###
     + &next_html
     + r###"
 </div><footer class="ltx_page_footer">
