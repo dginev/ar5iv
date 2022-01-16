@@ -1,11 +1,12 @@
 use crate::dirty_templates::{assemble_log, assemble_paper, assemble_paper_asset, LOG_FILENAME};
 use rocket::fs::NamedFile;
 use rocket::http::ContentType;
-use rocket_db_pools::deadpool_redis::redis::cmd;
+use rocket_db_pools::deadpool_redis::redis::{cmd, RedisError};
 use rocket_db_pools::deadpool_redis::ConnectionWrapper;
 use rocket_db_pools::Connection;
 use rocket_db_pools::{deadpool_redis, Database};
 use std::path::Path;
+use rand::seq::IteratorRandom;
 
 #[derive(Database)]
 #[database("memdb")]
@@ -167,4 +168,15 @@ pub fn build_arxiv_id(field_opt: &Option<&str>, id: &str) -> String {
   } else {
     id.to_owned()
   }
+}
+
+
+pub async fn lucky_url(conn: &mut ConnectionWrapper) -> Option<String> {
+  // it makes no sense to call this twice due to the size, just put it in a lazy static.
+  let all_articles_result: Result<Vec<String>, RedisError> = cmd("HKEYS")
+    .arg("paper_order")
+    .query_async::<_, Vec<String>>(conn).await;
+  let all_article_ids = all_articles_result.unwrap_or_default();
+  let mut rng = rand::thread_rng();
+  all_article_ids.iter().choose(&mut rng).map(|id| String::from("/html/")+id)
 }
