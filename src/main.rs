@@ -7,13 +7,14 @@ use rocket::http::ContentType;
 use rocket::http::Status;
 use rocket::response::{content, status, Redirect};
 use rocket::Request;
+use rocket::State;
 use rocket_db_pools::Connection;
 use rocket_db_pools::Database;
 use rocket_dyn_templates::Template;
 
 use ar5iv::cache::{
   assemble_log_with_cache, assemble_paper_asset_with_cache, assemble_paper_with_cache, Cache,
-  lucky_url
+  LuckyStore
 };
 use ar5iv::dirty_templates::{fetch_zip, AR5IV_CSS_URL};
 use std::collections::HashMap;
@@ -226,10 +227,10 @@ async fn get_field_source_zip(field: &str, id: &str) -> Option<(ContentType, Vec
 }
 
 #[get("/feeling_lucky")]
-async fn feeling_lucky( conn_opt: Option<Connection<Cache>>) -> Redirect {
+async fn feeling_lucky(lucky_store: &State<LuckyStore>, conn_opt: Option<Connection<Cache>>) -> Redirect {
   if let Some(mut conn) = conn_opt {
-    if let Some(uri) = lucky_url(&mut conn).await {
-      Redirect::to(uri)
+    if let Some(uri) = lucky_store.inner().get(&mut conn).await {
+      Redirect::to(String::from("/html/")+&uri)
     } else { // fallback to some standard paper
       Redirect::to("/html/1910.06709")
     } }
@@ -276,5 +277,6 @@ fn rocket() -> _ {
         feeling_lucky
       ],
     )
+    .manage(LuckyStore::new())
     .register("/", catchers![general_not_found, default_catcher])
 }

@@ -11,6 +11,7 @@ zip = "0.5"
 walkdir = "2"
 redis = "0.21.2"
 rand = "0.8.4"
+crossbeam = "0.8.1"
 
 [[bin]]
 path = "src/main.rs"

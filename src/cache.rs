@@ -1,12 +1,14 @@
 use crate::dirty_templates::{assemble_log, assemble_paper, assemble_paper_asset, LOG_FILENAME};
+use rand::seq::{IteratorRandom, SliceRandom};
 use rocket::fs::NamedFile;
 use rocket::http::ContentType;
 use rocket_db_pools::deadpool_redis::redis::{cmd, RedisError};
 use rocket_db_pools::deadpool_redis::ConnectionWrapper;
 use rocket_db_pools::Connection;
 use rocket_db_pools::{deadpool_redis, Database};
+use crossbeam::queue::ArrayQueue;
+
 use std::path::Path;
-use rand::seq::IteratorRandom;
 
 #[derive(Database)]
 #[database("memdb")]
@@ -179,4 +181,51 @@ pub async fn lucky_url(conn: &mut ConnectionWrapper) -> Option<String> {
   let all_article_ids = all_articles_result.unwrap_or_default();
   let mut rng = rand::thread_rng();
   all_article_ids.iter().choose(&mut rng).map(|id| String::from("/html/")+id)
+}
+
+pub struct LuckyStore(ArrayQueue<String>,ArrayQueue<String>);
+impl LuckyStore {
+  pub fn new() -> Self {
+    LuckyStore(ArrayQueue::new(2_000_000), ArrayQueue::new(2_000_000))
+  }
+  pub async fn get(&self, conn: &mut ConnectionWrapper) -> Option<String> {
+    if self.0.is_empty() {
+      if self.1.is_empty() {
+        // initial call, fill up from Redis
+        let all_articles_result: Result<Vec<String>, RedisError> = cmd("HKEYS")
+        .arg("paper_order")
+        .query_async::<_, Vec<String>>(conn)
+        .await;
+        let mut all_article_ids = all_articles_result.unwrap_or_default();
+        let mut rng = rand::thread_rng();
+        all_article_ids.shuffle(&mut rng);
+        // seed the thread-safe datastructure
+        for id in all_article_ids.into_iter() {
+          self.0.push(id).unwrap();
+        }
+      } else {
+        // rotate and reshuffle, the verbose way
+        let mut buffer = Vec::new();
+        while let Some(id) = self.1.pop() {
+          buffer.push(id);
+        }
+        let mut rng = rand::thread_rng();
+        buffer.shuffle(&mut rng);
+        for id in buffer.into_iter() {
+          self.0.push(id).unwrap();
+        }
+      }
+    }
+    if let Some(next) = self.0.pop() {
+      self.1.push(next.clone()).unwrap();
+      Some(next)
+    } else {
+      None
+    }
+  }
+}
+impl Default for LuckyStore {
+  fn default() -> Self {
+    Self::new()
+  }
 }
