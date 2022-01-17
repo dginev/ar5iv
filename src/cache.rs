@@ -7,9 +7,12 @@ use rocket_db_pools::deadpool_redis::ConnectionWrapper;
 use rocket_db_pools::Connection;
 use rocket_db_pools::{deadpool_redis, Database};
 use crossbeam::queue::ArrayQueue;
+use regex::Regex;
 
 use std::path::Path;
-
+lazy_static! {
+  static ref ARXIV_ID_VERSION: Regex = Regex::new("v\\d\\d?$").unwrap();
+}
 #[derive(Database)]
 #[database("memdb")]
 pub struct Cache(deadpool_redis::Pool);
@@ -79,11 +82,12 @@ pub async fn hget_cached(
 pub async fn assemble_paper_with_cache(
   mut conn_opt: Option<Connection<Cache>>,
   field_opt: Option<&str>,
-  id: &str,
+  id_raw: &str,
 ) -> Option<String> {
+  let id = ARXIV_ID_VERSION.replace(id_raw,"");
   let cached = match conn_opt {
     Some(ref mut conn) => {
-      let key = build_arxiv_id(&field_opt, id);
+      let key = build_arxiv_id(&field_opt, &id);
       get_cached(&mut *conn, &key).await.unwrap_or_default()
     }
     None => String::default(),
@@ -91,18 +95,19 @@ pub async fn assemble_paper_with_cache(
   if !cached.is_empty() {
     Some(cached)
   } else {
-    assemble_paper(conn_opt, field_opt, id).await
+    assemble_paper(conn_opt, field_opt, &id).await
   }
 }
 
 pub async fn assemble_paper_asset_with_cache(
   mut conn_opt: Option<Connection<Cache>>,
   field_opt: Option<&str>,
-  id: &str,
+  id_raw: &str,
   filename: &str,
 ) -> Result<(ContentType, Vec<u8>), Option<NamedFile>> {
+  let id = ARXIV_ID_VERSION.replace(id_raw,"");
   let key = match field_opt {
-    Some(ref field) => field.to_string() + id + "/" + filename,
+    Some(ref field) => field.to_string() + &id + "/" + filename,
     None => id.to_string() + "/" + filename,
   };
   let cached = match conn_opt {
@@ -111,7 +116,7 @@ pub async fn assemble_paper_asset_with_cache(
   };
   let asset_opt = if !cached.is_empty() {
     Ok(cached)
-  } else if let Some(asset) = assemble_paper_asset(field_opt, id, filename).await {
+  } else if let Some(asset) = assemble_paper_asset(field_opt, &id, filename).await {
     if asset.is_empty() {
       Err(
         NamedFile::open(Path::new("assets/missing_image.png"))
@@ -144,16 +149,17 @@ pub async fn assemble_paper_asset_with_cache(
 pub async fn assemble_log_with_cache(
   mut conn_opt: Option<Connection<Cache>>,
   field_opt: Option<&str>,
-  id: &str,
+  id_raw: &str,
 ) -> Option<String> {
-  let key = build_arxiv_id(&field_opt, id) + "/" + LOG_FILENAME;
+  let id = ARXIV_ID_VERSION.replace(id_raw,"");
+  let key = build_arxiv_id(&field_opt, &id) + "/" + LOG_FILENAME;
   let cached = match conn_opt {
     Some(ref mut conn) => get_cached(&mut *conn, &key).await.unwrap_or_default(),
     None => String::new(),
   };
   if !cached.is_empty() {
     Some(cached)
-  } else if let Some(paper) = assemble_log(field_opt, id).await {
+  } else if let Some(paper) = assemble_log(field_opt, &id).await {
     if let Some(mut conn) = conn_opt {
       set_cached(&mut conn, &key, paper.as_str()).await.ok();
     }
