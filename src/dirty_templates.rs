@@ -150,7 +150,7 @@ Conversion to HTML had a Fatal error and exited abruptly. This document may be t
     + "<div class=\"ar5iv-footer\">"
     + &prev_html
     + r###"
-    <a class="ar5iv-home-button" href="/"><img height="40" src="/assets/ar5iv.png"></a>
+    <a class="ar5iv-home-button" href="/"><img height="40" alt="ar5iv homepage" src="/assets/ar5iv.png"></a>
     <a href="/feeling_lucky" class="ar5iv-text-button">Feeling<br>lucky?</a>
     <a href="/log/"###
     + id_arxiv
@@ -163,7 +163,7 @@ Conversion to HTML had a Fatal error and exited abruptly. This document may be t
     + &next_html
     + r###"
 </div><footer class="ltx_page_footer">
-<a class="ar5iv-toggle-color-scheme" href="javascript:toggleColorScheme()" title="Toggle ar5iv color scheme"><span class="color-scheme-icon"</span></a>
+<a class="ar5iv-toggle-color-scheme" href="javascript:toggleColorScheme()" title="Toggle ar5iv color scheme"><span class="color-scheme-icon"></span></a>
 "###;
   main_content = START_FOOTER
     .replace(&main_content, ar5iv_footer)
