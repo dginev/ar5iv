@@ -197,8 +197,7 @@ Conversion to HTML had a Fatal error and exited abruptly. This document may be t
                 body.firstElementChild.removeAttribute('style');
               }); } } };
       }      
-    </script>
-    </body>"###,
+    </script>"###,
     // Thanks to https://stackoverflow.com/questions/56300132/how-to-override-css-prefers-color-scheme-setting
     // local storage is used to override OS theme settings
     r###"
@@ -274,7 +273,8 @@ Conversion to HTML had a Fatal error and exited abruptly. This document may be t
       link.addEventListener("click", clicked_cite);
     });
     </script>
-    "###
+    "###,
+    "</body>"
   );
   let css = String::from("<link media=\"all\" rel=\"stylesheet\" href=\"")
     + AR5IV_CSS_URL
