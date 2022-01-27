@@ -1,4 +1,5 @@
-use crate::dirty_templates::{assemble_log, assemble_paper, assemble_paper_asset, LOG_FILENAME};
+use crate::assemble_asset::{assemble_log, assemble_paper, assemble_paper_asset};
+use crate::constants::LOG_FILENAME;
 use rand::seq::{IteratorRandom, SliceRandom};
 use rocket::fs::NamedFile;
 use rocket::http::ContentType;
@@ -83,6 +84,7 @@ pub async fn assemble_paper_with_cache(
   mut conn_opt: Option<Connection<Cache>>,
   field_opt: Option<&str>,
   id_raw: &str,
+  use_dom: bool,
 ) -> Option<String> {
   let id = ARXIV_ID_VERSION.replace(id_raw,"");
   let cached = match conn_opt {
@@ -95,7 +97,7 @@ pub async fn assemble_paper_with_cache(
   if !cached.is_empty() {
     Some(cached)
   } else {
-    assemble_paper(conn_opt, field_opt, &id).await
+    assemble_paper(conn_opt, field_opt, &id, use_dom).await
   }
 }
 

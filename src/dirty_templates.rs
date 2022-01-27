@@ -1,84 +1,54 @@
+use crate::assemble_asset::LatexmlStatus;
+use crate::constants::{AR5IV_CSS_URL,SITE_CSS_URL,DOC_NOT_FOUND_TEMPLATE};
 use regex::{Captures, Regex};
-use rocket::http::ContentType;
-use rocket::tokio::task::spawn_blocking;
-use rocket_db_pools::Connection;
-use std::fs::File;
-use std::io::{BufReader, Read};
-use std::path::{Path, PathBuf};
-use zip::ZipArchive;
-
-use crate::cache::{build_arxiv_id, hget_cached, set_cached, set_cached_asset, Cache};
-use crate::paper_order::AR5IV_PAPERS_ROOT_DIR;
-
-pub static LOG_FILENAME: &str = "cortex.log";
-pub static AR5IV_CSS_URL: &str = "//cdn.jsdelivr.net/gh/dginev/ar5iv-css@0.7.0/css/ar5iv.min.css";
-pub static SITE_CSS_URL: &str = "/assets/ar5iv-site.css";
 
 lazy_static! {
   static ref END_ARTICLE: Regex = Regex::new("</article>").unwrap();
   static ref END_HEAD: Regex = Regex::new("</head>").unwrap();
-  static ref START_PAGE_CONTENT: Regex = Regex::new("<div class=\"ltx_page_content\">").unwrap();
   static ref END_BODY: Regex = Regex::new("</body>").unwrap();
+  static ref START_PAGE_CONTENT: Regex = Regex::new("<div class=\"ltx_page_content\">").unwrap();
+  static ref START_FOOTER: Regex = Regex::new("<footer class=\"ltx_page_footer\">").unwrap();
+  static ref TITLE_ELEMENT: Regex = Regex::new("<title>([^<]+)</title>").unwrap();
   static ref SRC_ATTR: Regex = Regex::new(" src=\"([^\"]+)").unwrap();
   static ref DATA_SVG_ATTR: Regex = Regex::new(" data=\"([^\"]+)[.]svg").unwrap();
   static ref HEX_JPG: Regex = Regex::new(r"^ffd8ffe0").unwrap();
   static ref HEX_PNG: Regex = Regex::new(r"^89504e47").unwrap();
   static ref HEX_GIF: Regex = Regex::new(r"^47494638").unwrap();
-  static ref START_FOOTER: Regex = Regex::new("<footer class=\"ltx_page_footer\">").unwrap();
   static ref EXTERNAL_HREF: Regex = Regex::new(" href=\"http").unwrap();
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd)]
-pub enum LatexmlStatus {
-  Ok,
-  Warning,
-  Error,
-  Fatal,
-}
-
-pub fn branded_ar5iv_html(
+pub fn dirty_branded_ar5iv_html(
   mut main_content: String,
   id_arxiv: &str,
   status: LatexmlStatus,
   prev: Option<String>,
   next: Option<String>,
 ) -> String {
-  let status_css_class = match status {
-    LatexmlStatus::Ok => "ar5iv-severity-ok",
-    LatexmlStatus::Warning => "ar5iv-severity-warning",
-    LatexmlStatus::Error => "ar5iv-severity-error",
-    LatexmlStatus::Fatal => "ar5iv-severity-fatal",
-  };
+  let status_css_class = status.as_css_class();
   // ensure main_content is a string if undefined
   if main_content.is_empty() {
-    main_content = String::from(
-      r###"
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta http-equiv="Content-Type" content="text/html" />
-    <meta charset="utf-8" />
-    <title> No content available </title>
-    <meta name="language" content="English">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body>
-    <div class="ltx_page_main">
-      <div class="ltx_page_content">
-        <article class="ltx_document">
-        </article>
-      </div>
-      <footer class="ltx_page_footer"></footer>
-    </div>
-</body>
-</html>
-"###,
-    );
+    main_content = DOC_NOT_FOUND_TEMPLATE.to_string();
   } else {
     // ensure we have a lang attribute otherwise, English being most common in arXiv
-    main_content = main_content.replacen("<html>", "<html lang=\"en\">", 1)
+    main_content = main_content.replacen("<html>", "<html lang=\"en\">", 1);
+    
     // also add the arxiv id to the title element
-      .replacen("<title>", &format!("<title>[{}] ",id_arxiv), 1);
+    //
+    // Note: replacen would be faster, but we can't access the title content
+    // .replacen("<title>", &format!("<title>[{}] ",id_arxiv), 1);
+    
+    // This is also the best place to insert vendor-specific meta tags
+    main_content = TITLE_ELEMENT.replace(&main_content, |caps: &Captures| {
+      String::from("<title>[")+id_arxiv+"] "+&caps[1]+"</title>"+r###"
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content=""###+&caps[1]+r###"">
+<meta name="twitter:image" content="https://ar5iv.org/assets/ar5iv.png">
+<meta name="twitter:image:alt" content="ar5iv logo">
+<meta property="og:title" content=""###+&caps[1]+r###"">
+<meta property="og:site_name" content="ar5iv.org">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://ar5iv.org/html/"###+id_arxiv+r###"">
+"### }).to_string();
   }
 
   let main_content_src = SRC_ATTR.replace_all(&main_content, |caps: &Captures| {
@@ -288,182 +258,8 @@ Conversion to HTML had a Fatal error and exited abruptly. This document may be t
   main_content
 }
 
-pub async fn assemble_paper(
-  mut conn_opt: Option<Connection<Cache>>,
-  field_opt: Option<&str>,
-  id: &str,
-) -> Option<String> {
-  // Option<File>
-  // TODO: Can the tokio::fs::File be swapped in here for some benefit? Does the ZIP crate allow for that?
-  //       I couldn't easily understand the answer from what I found online.
-  if let Some(paper_path) = build_paper_path(field_opt, id) {
-    let id_arxiv = build_arxiv_id(&field_opt, id);
-    if let Ok(mut zip) = spawn_blocking(move || {
-      let zipf = File::open(&paper_path).unwrap();
-      let reader = BufReader::new(zipf);
-      ZipArchive::new(reader).unwrap()
-    })
-    .await
-    {
-      let mut log = String::new();
-      let mut html = String::new();
-      let mut status = LatexmlStatus::Fatal;
-      let mut assets = Vec::new();
-      for i in 0..zip.len() {
-        if let Ok(mut file) = zip.by_index(i) {
-          if file.is_file() {
-            let mut asset = None;
-            match file.name() {
-              name if name.ends_with(".html") => {
-                file.read_to_string(&mut html).unwrap();
-              }
-              name if name == LOG_FILENAME => {
-                file.read_to_string(&mut log).unwrap();
-              }
-              other => {
-                // record assets for later management4
-                asset = Some(other.to_string());
-              }
-            }
-            if let Some(asset_name) = asset {
-              let mut file_contents = Vec::new();
-              file.read_to_end(&mut file_contents).unwrap();
-              //       the assets should be immediately inserted as we read the ZIP
-              //       for async fetching by the browser in the /images/ routes
-              if !file_contents.is_empty() {
-                assets.push((asset_name, file_contents));
-              }
-            }
-          }
-        }
-      }
-      // if we found assets, cache them.
-      for (key, val) in assets.into_iter() {
-        let cache_key = format!("{}/{}", id_arxiv, &key);
-        if let Some(ref mut conn) = conn_opt {
-          set_cached_asset(conn, cache_key.as_str(), &val).await.ok();
-        }
-      }
-      // the log is dealt with under the /log/ route
-      // but since we have it here, cache it
-      if !log.is_empty() {
-        status = log_to_status(&log);
-        let cache_key = format!("{}/{}", id_arxiv, LOG_FILENAME);
-        if let Some(ref mut conn) = conn_opt {
-          set_cached(conn, &cache_key, &log_to_html(&log, &id_arxiv))
-            .await
-            .ok();
-        }
-      }
-      let mut pieces: Vec<String> = if let Some(ref mut conn) = conn_opt {
-        if let Ok(adjacent_papers) = hget_cached(conn, "paper_order", &id_arxiv).await {
-          adjacent_papers.split(';').map(|x| x.to_string()).collect()
-        } else {
-          Vec::new()
-        }
-      } else {
-        Vec::new()
-      };
-      let next = if pieces.len() < 2 {
-        None
-      } else {
-        Some(pieces.pop().unwrap())
-      };
-      let prev = if pieces.is_empty() {
-        None
-      } else {
-        Some(pieces.pop().unwrap())
-      };
-      // Lastly, build a single coherent HTML page.
-      let branded_html = branded_ar5iv_html(html, &id_arxiv, status, prev, next);
-      if let Some(ref mut conn) = conn_opt {
-        set_cached(&mut *conn, &id_arxiv, branded_html.as_str())
-          .await
-          .ok();
-      }
-      Some(branded_html)
-    } else {
-      None
-    }
-  } else {
-    None
-  }
-}
 
-pub async fn assemble_paper_asset(
-  field_opt: Option<&str>,
-  id: &str,
-  filename: &str,
-) -> Option<Vec<u8>> {
-  if let Some(paper_path) = build_paper_path(field_opt, id) {
-    if let Ok(mut zip) = spawn_blocking(move || {
-      let zipf = File::open(&paper_path).unwrap();
-      let reader = BufReader::new(zipf);
-      ZipArchive::new(reader).unwrap()
-    })
-    .await
-    {
-      if let Ok(mut asset) = zip.by_name(filename) {
-        let mut file_contents = Vec::new();
-        asset.read_to_end(&mut file_contents).ok();
-        Some(file_contents)
-      } else {
-        None
-      }
-    } else {
-      None
-    }
-  } else {
-    None
-  }
-}
-
-pub fn fetch_zip(field_opt: Option<&str>, id: &str) -> Option<(ContentType, Vec<u8>)> {
-  if let Some(paper_path) = build_source_zip_path(field_opt, id) {
-    let zipf = File::open(&paper_path).unwrap();
-    let mut reader = BufReader::new(zipf);
-    let mut payload = Vec::new();
-    reader.read_to_end(&mut payload).ok();
-    if payload.is_empty() {
-      None
-    } else {
-      Some((ContentType::ZIP, payload))
-    }
-  } else {
-    None
-  }
-}
-
-pub async fn assemble_log(field_opt: Option<&str>, id: &str) -> Option<String> {
-  if let Some(paper_path) = build_paper_path(field_opt, id) {
-    if let Ok(mut zip) = spawn_blocking(move || {
-      let zipf = File::open(&paper_path).unwrap();
-      let reader = BufReader::new(zipf);
-      ZipArchive::new(reader).unwrap()
-    })
-    .await
-    {
-      if let Ok(mut asset) = zip.by_name(LOG_FILENAME) {
-        let mut conversion_report: String = String::new();
-        asset.read_to_string(&mut conversion_report).ok();
-        let id_arxiv = if let Some(ref field) = field_opt {
-          format!("{}/{}", field, id)
-        } else {
-          id.to_owned()
-        };
-        Some(log_to_html(&conversion_report, &id_arxiv))
-      } else {
-        None
-      }
-    } else {
-      None
-    }
-  } else {
-    None
-  }
-}
-
-fn log_to_html(conversion_report: &str, id_arxiv: &str) -> String {
+pub fn log_to_html(conversion_report: &str, id_arxiv: &str) -> String {
   String::from(
     r###"<!DOCTYPE html><html>
 <head>
@@ -527,69 +323,4 @@ fn log_to_html(conversion_report: &str, id_arxiv: &str) -> String {
 </div></div>
 </body>
 </html>"###
-}
-
-fn log_to_status(log: &str) -> LatexmlStatus {
-  let mut status = LatexmlStatus::Ok;
-  for line in log.lines() {
-    if line.starts_with("Warning:") && status < LatexmlStatus::Warning {
-      status = LatexmlStatus::Warning;
-    } else if line.starts_with("Error:") && status < LatexmlStatus::Error {
-      status = LatexmlStatus::Error;
-    } else if line.starts_with("Fatal:") && status < LatexmlStatus::Fatal {
-      status = LatexmlStatus::Fatal;
-    } else if line.starts_with("Status:conversion:") {
-      match line.chars().nth(18).unwrap() {
-        '0' => {
-          if status <= LatexmlStatus::Ok {
-            status = LatexmlStatus::Ok
-          }
-        }
-        '1' => {
-          if status < LatexmlStatus::Warning {
-            status = LatexmlStatus::Warning
-          }
-        }
-        '2' => {
-          if status < LatexmlStatus::Error {
-            status = LatexmlStatus::Error
-          }
-        }
-        _ => status = LatexmlStatus::Fatal,
-      }
-    }
-  }
-  status
-}
-
-fn build_paper_path(field_opt: Option<&str>, id: &str) -> Option<PathBuf> {
-  let id_base = &id[0..4];
-  let paper_path_str = format!(
-    "{}/{}/{}{}/tex_to_html.zip",
-    *AR5IV_PAPERS_ROOT_DIR,
-    id_base,
-    field_opt.unwrap_or(""),
-    id
-  );
-  let paper_path = Path::new(&paper_path_str);
-  if paper_path.exists() {
-    Some(paper_path.to_path_buf())
-  } else {
-    None
-  }
-}
-
-fn build_source_zip_path(field_opt: Option<&str>, id: &str) -> Option<PathBuf> {
-  let id_base = &id[0..4];
-  let field = field_opt.unwrap_or("");
-  let paper_path_str = format!(
-    "{}/{}/{}{}/{}{}.zip",
-    *AR5IV_PAPERS_ROOT_DIR, id_base, field, id, field, id
-  );
-  let paper_path = Path::new(&paper_path_str);
-  if paper_path.exists() {
-    Some(paper_path.to_path_buf())
-  } else {
-    None
-  }
 }

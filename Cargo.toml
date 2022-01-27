@@ -12,6 +12,7 @@ walkdir = "2"
 redis = "0.21.2"
 rand = "0.8.4"
 crossbeam = "0.8.1"
+libxml = "0.3.0"
 
 [[bin]]
 path = "src/main.rs"
@@ -20,6 +21,13 @@ name = "ar5iv"
 [[bin]]
 path = "bin/cache_adjacency_map.rs"
 name = "cache_adjacency_map"
+
+[dev-dependencies]
+criterion = {version = "0.3.5", features=["async_tokio"]}
+
+[[bench]]
+name = "dirty_render"
+harness = false
 
 [dependencies.rocket]
 git="https://github.com/SergioBenitez/Rocket"

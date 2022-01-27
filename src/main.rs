@@ -6,8 +6,7 @@ use rocket::fs::NamedFile;
 use rocket::http::ContentType;
 use rocket::http::Status;
 use rocket::response::{content, status, Redirect};
-use rocket::Request;
-use rocket::State;
+use rocket::{Request,State};
 use rocket_db_pools::Connection;
 use rocket_db_pools::Database;
 use rocket_dyn_templates::Template;
@@ -16,7 +15,8 @@ use ar5iv::cache::{
   assemble_log_with_cache, assemble_paper_asset_with_cache, assemble_paper_with_cache, Cache,
   LuckyStore
 };
-use ar5iv::dirty_templates::{fetch_zip, AR5IV_CSS_URL};
+use ar5iv::assemble_asset::{fetch_zip};
+use ar5iv::constants::AR5IV_CSS_URL;
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -47,7 +47,7 @@ async fn get_html(
   conn: Option<Connection<Cache>>,
   id: &str,
 ) -> Result<content::RawHtml<String>, Template> {
-  if let Some(paper) = assemble_paper_with_cache(conn, None, id).await {
+  if let Some(paper) = assemble_paper_with_cache(conn, None, id, false).await {
     Ok(content::RawHtml(paper))
   } else {
     let mut map: HashMap<&str, &str> = HashMap::new();
@@ -62,7 +62,7 @@ async fn get_field_html(
   field: &str,
   id: &str,
 ) -> Result<content::RawHtml<String>, Template> {
-  if let Some(paper) = assemble_paper_with_cache(conn, Some(field), id).await {
+  if let Some(paper) = assemble_paper_with_cache(conn, Some(field), id, false).await {
     Ok(content::RawHtml(paper))
   } else {
     let mut map: HashMap<&str, &str> = HashMap::new();
