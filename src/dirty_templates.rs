@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use crate::assemble_asset::LatexmlStatus;
 use crate::constants::{AR5IV_CSS_URL,SITE_CSS_URL,DOC_NOT_FOUND_TEMPLATE};
 use regex::{Captures, Regex};
@@ -8,7 +9,11 @@ lazy_static! {
   static ref END_BODY: Regex = Regex::new("</body>").unwrap();
   static ref START_PAGE_CONTENT: Regex = Regex::new("<div class=\"ltx_page_content\">").unwrap();
   static ref START_FOOTER: Regex = Regex::new("<footer class=\"ltx_page_footer\">").unwrap();
-  static ref TITLE_ELEMENT: Regex = Regex::new("<title>([^<]+)</title>").unwrap();
+  static ref TITLE_ELEMENT: Regex = Regex::new("<title>((?s)[^<]+?)</title>").unwrap();
+  static ref SINFUL_P_CONTENT : Regex = Regex::new("\"ltx_p\">((?s).+?)</p>").unwrap();
+  static ref SINFUL_MATH : Regex = Regex::new("<math(?s:.+?)</math>").unwrap();
+  static ref SINFUL_TAGS : Regex = Regex::new("<[^>]+?>").unwrap();
+  static ref ABSTRACT_ELEMENT : Regex = Regex::new("\"ltx_abstract\">((?s).+?)</div>").unwrap();
   static ref SRC_ATTR: Regex = Regex::new(" src=\"([^\"]+)").unwrap();
   static ref DATA_SVG_ATTR: Regex = Regex::new(" data=\"([^\"]+)[.]svg").unwrap();
   static ref HEX_JPG: Regex = Regex::new(r"^ffd8ffe0").unwrap();
@@ -31,15 +36,35 @@ pub fn dirty_branded_ar5iv_html(
   } else {
     // ensure we have a lang attribute otherwise, English being most common in arXiv
     main_content = main_content.replacen("<html>", "<html lang=\"en\">", 1);
-    
-    // also add the arxiv id to the title element
-    //
+       
     // Note: replacen would be faster, but we can't access the title content
-    // .replacen("<title>", &format!("<title>[{}] ",id_arxiv), 1);
-    
-    // This is also the best place to insert vendor-specific meta tags
+    // .replacen("<title>", &format!("<title>[{}] ",id_arxiv), 1);    
     main_content = TITLE_ELEMENT.replace(&main_content, |caps: &Captures| {
-      String::from("<title>[")+id_arxiv+"] "+&caps[1]+"</title>"+r###"
+      // *IF* we have an abstract, fish out a description, using the most sinful of regex judo
+      // YES, this is bad, but have you tried re-serializing the DOM for a 400-page book with cross-referenced MathML?
+      //      we just don't have the time.
+      // Real solution: a metadata latexml post-processor, which does the annotations as we create <title> and friends.
+      let description = if let Some(abs_cap) = ABSTRACT_ELEMENT.captures(&main_content) {
+        if let Some(p_caps) = SINFUL_P_CONTENT.captures(&abs_cap[1]) {
+          let no_math = SINFUL_MATH.replace_all(&p_caps[1],"");
+          let no_tags = SINFUL_TAGS.replace_all(
+            &no_math,"");
+          // keep it brief.
+          let text_description = if no_tags.len() > 218 {
+            Cow::Owned(no_tags[..218].to_string() +"…")
+          } else {
+            no_tags
+          };
+          String::from("<meta property=\"og:description\" content=\"") +&text_description+"\">"
+        } else {
+          String::default()
+        }
+      } else {
+        String::default()
+      };
+      // 1. also add the arxiv id to the title element
+      // 2. this is also the best place to insert vendor-specific meta tags  
+      String::from("<title>[")+id_arxiv+"] "+&caps[1]+"</title>"+&description+r###"
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content=""###+&caps[1]+r###"">
 <meta name="twitter:image:src" content="https://ar5iv.org/assets/ar5iv_card.png">
