@@ -5,8 +5,17 @@
   <meta http-equiv="Content-Type" content="text/html" />
   <meta charset="utf-8" />
   <title>ar5iv – Articles from arXiv.org as responsive HTML5 web documents</title>
-  <meta name="description"
-    content="A preview site of arXiv articles as HTML5 web documents. Converted from TeX/LaTeX by the LaTeXML toolkit.">
+  <meta name="description" content="ar5iv offers a modern web view for arXiv's preprints. An open community resource on a quest to full, high-quality support.">
+  <meta property="og:description" content="ar5iv offers a modern web view for arXiv's preprints. An open community resource on a quest to full, high-quality support.">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="ar5iv – Articles from arXiv.org as responsive HTML5 web documents">
+  <meta name="twitter:image:src" content="https://ar5iv.org/assets/ar5iv_card.png">
+  <meta name="twitter:image:alt" content="ar5iv logo">
+  <meta property="og:title" content="ar5iv – Articles from arXiv.org as responsive HTML5 web documents">
+  <meta property="og:site_name" content="ar5iv">
+  <meta property="og:image" content="https://ar5iv.org/assets/ar5iv_card.png">
+  <meta property="og:url" content="https://ar5iv.org">
+
   <meta name="language" content="English">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link media="all" rel="stylesheet" href="{{AR5IV_CSS_URL}}">
