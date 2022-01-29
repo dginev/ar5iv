@@ -1,12 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <meta http-equiv="Content-Type" content="text/html" />
-  <meta charset="utf-8" />
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
   <title>ar5iv – Articles from arXiv.org as responsive HTML5 web documents</title>
-  <meta name="description" content="ar5iv offers a modern web view for arXiv's preprints. An open community resource on a quest to full, high-quality support.">
-  <meta property="og:description" content="ar5iv offers a modern web view for arXiv's preprints. An open community resource on a quest to full, high-quality support.">
+  <meta name="description" content="ar5iv offers a modern web view for arXiv's preprints. An open community resource, on a quest to a full collection of high-quality documents.">
+  <meta property="og:description" content="ar5iv offers a modern web view for arXiv's preprints. An open community resource, on a quest to a full collection of high-quality documents.">
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="ar5iv – Articles from arXiv.org as responsive HTML5 web documents">
   <meta name="twitter:image:src" content="https://ar5iv.org/assets/ar5iv_card.png">
@@ -15,7 +13,6 @@
   <meta property="og:site_name" content="ar5iv">
   <meta property="og:image" content="https://ar5iv.org/assets/ar5iv_card.png">
   <meta property="og:url" content="https://ar5iv.org">
-
   <meta name="language" content="English">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link media="all" rel="stylesheet" href="{{AR5IV_CSS_URL}}">
@@ -26,8 +23,9 @@
   <div class="ar5iv-homepage ltx_page_main">
     <div class="ar5iv-homepage-content ltx_page_content">
       <article class="ltx_document">
-        <h1 class="ltx_title ltx_title_document"><img src="/assets/ar5iv.png" height="64"><br>Articles from
-          <a class="ltx_ref" href="https://arxiv.org/">arXiv.org</a> as
+        <h1 class="ltx_title ltx_title_document">
+          <img alt="ar5iv logo" src="/assets/ar5iv.png" height="64"><br>
+          Articles from <a class="ltx_ref" href="https://arxiv.org/">arXiv.org</a> as
           responsive HTML<span style="color:#e44d26">5</span> web pages.
         </h1>
 
@@ -103,8 +101,8 @@
               d=" M 123.96 86.99 C 127.05 84.26 131.35 84.80 135.00 85.85 L 135.00 87.30 C 134.61 87.83 133.83 88.88 133.44 89.41 C 131.50 89.47 129.06 88.79 127.70 90.63 C 125.39 93.39 124.43 97.39 125.23 100.88 C 126.07 103.42 129.04 102.30 131.03 102.53 C 131.07 103.47 131.14 105.35 131.18 106.29 C 127.57 107.51 122.77 108.31 120.24 104.69 C 116.66 99.09 119.13 91.09 123.96 86.99 Z" />
           </svg>
         </a>
+      </div>
     </footer>
-  </div>
   </div>
 </body>
 
