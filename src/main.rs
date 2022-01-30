@@ -239,6 +239,13 @@ async fn feeling_lucky(lucky_store: &State<LuckyStore>, conn_opt: Option<Connect
   }
 }
 
+#[get("/robots.txt")]
+fn robots_txt() -> (ContentType, &'static str) {
+  (ContentType::Plain, 
+r###"User-agent: *
+Disallow: /log/
+"###) }
+
 #[catch(default)]
 fn default_catcher(status: Status, req: &Request<'_>) -> status::Custom<String> {
   let msg = format!("{} ({})", status, req.uri());
@@ -274,7 +281,8 @@ fn rocket() -> _ {
         about,
         assets,
         favicon,
-        feeling_lucky
+        feeling_lucky,
+        robots_txt
       ],
     )
     .manage(LuckyStore::new())

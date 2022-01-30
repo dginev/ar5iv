@@ -41,10 +41,10 @@ pub async fn assemble_paper(
   //       I couldn't easily understand the answer from what I found online.
   if let Some(paper_path) = build_paper_path(field_opt, id) {
     let id_arxiv = build_arxiv_id(&field_opt, id);
-    if let Ok(mut zip) = spawn_blocking(move || {
-      let zipf = File::open(&paper_path).unwrap();
+    if let Ok(Ok(mut zip)) = spawn_blocking(move || {
+      let zipf = File::open(&paper_path)?;
       let reader = BufReader::new(zipf);
-      ZipArchive::new(reader).unwrap()
+      ZipArchive::new(reader)
     })
     .await
     {
