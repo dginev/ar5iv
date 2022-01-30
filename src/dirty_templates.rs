@@ -65,7 +65,7 @@ pub fn dirty_branded_ar5iv_html(
       // 1. also add the arxiv id to the title element
       // 2. this is also the best place to insert vendor-specific meta tags  
       String::from("<title>[")+id_arxiv+"] "+&caps[1]+"</title>"+&description+r###"
-<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content=""###+&caps[1]+r###"">
 <meta name="twitter:image:src" content="https://ar5iv.org/assets/ar5iv_card.png">

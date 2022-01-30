@@ -138,22 +138,19 @@ a.arxiv-ui-theme {
 
 /* Hide the polyfill dirty work behind a curtain */
 #mathjax-loading-message {
-  position:fixed;
-  top:6rem;
-  left: 45%;
-  z-index:1000;
   display: block;
   font-size:1.5rem;
+  margin:auto;
   max-width: 52rem;
   text-align: center;
+  padding: 6rem;
+  z-index: 100;
 }
 #mathjax-loading-spinner {
-  position:fixed;
-  top:12rem;
-  left: 47.5%;
-  z-index:1000;
   display: block;
+  margin:auto;
   background-color: white;
+  z-index: 100;
   border: 16px solid #f3f3f3; /* Light grey */
   border-top: 16px solid #3498db; /* Blue */
   border-radius: 50%;
