@@ -153,6 +153,8 @@ Conversion to HTML had a Fatal error and exited abruptly. This document may be t
     + r###"" class="ar5iv-text-button "###
     + status_css_class
     + r###"">Conversion<br>report</a>
+    <a class="ar5iv-text-button" href="https://github.com/dginev/ar5iv/issues/new?template=improve-article--arxiv-id-.md&title=Improve+article+"###+id_arxiv+
+    r###"">Report<br>an issue</a>
     <a href="https://arxiv.org/abs/"###
     + id_arxiv
     + r###"" class="ar5iv-text-button arxiv-ui-theme">View&nbsp;original<br>on&nbsp;arXiv</a>"###
