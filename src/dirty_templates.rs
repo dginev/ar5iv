@@ -65,6 +65,7 @@ pub fn dirty_branded_ar5iv_html(
       // 1. also add the arxiv id to the title element
       // 2. this is also the best place to insert vendor-specific meta tags  
       String::from("<title>[")+id_arxiv+"] "+&caps[1]+"</title>"+&description+r###"
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content=""###+&caps[1]+r###"">
 <meta name="twitter:image:src" content="https://ar5iv.org/assets/ar5iv_card.png">
@@ -196,38 +197,6 @@ Conversion to HTML had a Fatal error and exited abruptly. This document may be t
               }); } } };
       }      
     </script>"###,
-    // Thanks to https://stackoverflow.com/questions/56300132/how-to-override-css-prefers-color-scheme-setting
-    // local storage is used to override OS theme settings
-    r###"
-    <script>
-      function detectColorScheme(){
-        var theme="light";
-        var current_theme = localStorage.getItem("ar5iv_theme");
-        if(current_theme){
-          if(current_theme == "dark"){
-            theme = "dark";
-          } }
-        else if(!window.matchMedia) { return false; }
-        else if(window.matchMedia("(prefers-color-scheme: dark)").matches) {
-          theme = "dark"; }
-        if (theme=="dark") {
-          document.documentElement.setAttribute("data-theme", "dark");
-        } else {
-          document.documentElement.setAttribute("data-theme", "light"); } }
-      
-      detectColorScheme();
-      
-      function toggleColorScheme(){
-        var current_theme = localStorage.getItem("ar5iv_theme");
-        if (current_theme) {
-          if (current_theme == "light") {
-            localStorage.setItem("ar5iv_theme", "dark"); }
-          else {
-            localStorage.setItem("ar5iv_theme", "light"); } }
-        else {
-            localStorage.setItem("ar5iv_theme", "dark"); }
-        detectColorScheme(); }
-    </script>"###,
     // Let's experiment with an inline bibitem preview 
     r###"
     <script>
@@ -274,14 +243,46 @@ Conversion to HTML had a Fatal error and exited abruptly. This document may be t
     "###,
     "</body>"
   );
-  let css = String::from("<link media=\"all\" rel=\"stylesheet\" href=\"")
-    + AR5IV_CSS_URL
-    + "\"><link media=\"all\" rel=\"stylesheet\" href=\""
-    + SITE_CSS_URL
-    + "\">
+  // Thanks to https://stackoverflow.com/questions/56300132/how-to-override-css-prefers-color-scheme-setting
+  // local storage is used to override OS theme settings
+  let pre_js_and_css = String::from(r###"
+<script>
+  function detectColorScheme(){
+    var theme="light";
+    var current_theme = localStorage.getItem("ar5iv_theme");
+    if(current_theme){
+      if(current_theme == "dark"){
+        theme = "dark";
+      } }
+    else if(!window.matchMedia) { return false; }
+    else if(window.matchMedia("(prefers-color-scheme: dark)").matches) {
+      theme = "dark"; }
+    if (theme=="dark") {
+      document.documentElement.setAttribute("data-theme", "dark");
+    } else {
+      document.documentElement.setAttribute("data-theme", "light"); } }
+  
+  detectColorScheme();
+  
+  function toggleColorScheme(){
+    var current_theme = localStorage.getItem("ar5iv_theme");
+    if (current_theme) {
+      if (current_theme == "light") {
+        localStorage.setItem("ar5iv_theme", "dark"); }
+      else {
+        localStorage.setItem("ar5iv_theme", "light"); } }
+    else {
+        localStorage.setItem("ar5iv_theme", "dark"); }
+    detectColorScheme(); }
+</script>
+<link media="all" rel="stylesheet" href=""###)
+  + AR5IV_CSS_URL
+  + "\"><link media=\"all\" rel=\"stylesheet\" href=\""
+  + SITE_CSS_URL
+  + "\">
 </head>";
 
-  main_content = END_HEAD.replace(&main_content, css).to_string();
+  main_content = END_HEAD.replace(&main_content, pre_js_and_css).to_string();
   main_content = END_BODY.replace(&main_content, active_js).to_string();
   main_content
 }
