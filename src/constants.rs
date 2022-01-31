@@ -1,5 +1,5 @@
 pub static LOG_FILENAME: &str = "cortex.log";
-pub static AR5IV_CSS_URL: &str = "//cdn.jsdelivr.net/gh/dginev/ar5iv-css@0.7.1/css/ar5iv.min.css";
+pub static AR5IV_CSS_URL: &str = "//cdn.jsdelivr.net/gh/dginev/ar5iv-css@0.7.2/css/ar5iv.min.css";
 pub static SITE_CSS_URL: &str = "/assets/ar5iv-site.css";
 
 pub static DOC_NOT_FOUND_TEMPLATE : &str = r###"<!DOCTYPE html>
