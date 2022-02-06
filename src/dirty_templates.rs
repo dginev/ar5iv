@@ -1,7 +1,8 @@
-use std::borrow::Cow;
 use crate::assemble_asset::LatexmlStatus;
-use crate::constants::{AR5IV_CSS_URL,SITE_CSS_URL,DOC_NOT_FOUND_TEMPLATE};
+use crate::constants::{AR5IV_CSS_URL, DOC_NOT_FOUND_TEMPLATE, SITE_CSS_URL};
 use regex::{Captures, Regex};
+use std::borrow::Cow;
+use unicode_segmentation::UnicodeSegmentation;
 
 lazy_static! {
   static ref END_ARTICLE: Regex = Regex::new("</article>").unwrap();
@@ -51,7 +52,7 @@ pub fn dirty_branded_ar5iv_html(
             &no_math,"");
           // keep it brief.
           let text_description = if no_tags.len() > 218 {
-            Cow::Owned(no_tags[..218].to_string() +"…")
+            Cow::Owned(no_tags.graphemes(true).take(218).collect::<Vec<_>>().join("") +"…")
           } else {
             no_tags
           };
