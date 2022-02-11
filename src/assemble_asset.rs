@@ -244,6 +244,10 @@ fn log_to_status(log: &str) -> LatexmlStatus {
 }
 
 fn build_paper_path(field_opt: Option<&str>, id: &str) -> Option<PathBuf> {
+  // basic sanity: valid ids are 4+ characters.
+  if id.len() < 4 {
+    return None;
+  }
   let id_base = &id[0..4];
   let paper_path_str = format!(
     "{}/{}/{}{}/tex_to_html.zip",
