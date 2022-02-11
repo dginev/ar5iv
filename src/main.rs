@@ -46,14 +46,11 @@ async fn favicon() -> Option<NamedFile> {
 async fn get_html(
   conn: Option<Connection<Cache>>,
   id: &str,
-) -> Result<content::RawHtml<String>, Template> {
+) -> Result<content::RawHtml<String>, Redirect> {
   if let Some(paper) = assemble_paper_with_cache(conn, None, id, false).await {
     Ok(content::RawHtml(paper))
   } else {
-    let mut map: HashMap<&str, &str> = HashMap::new();
-    map.insert("id", id);
-    map.insert("AR5IV_CSS_URL", AR5IV_CSS_URL);
-    Err(Template::render("404", &map))
+    Err(Redirect::temporary(format!("https://arxiv.org/abs/{}",id)))
   }
 }
 #[get("/html/<field>/<id>")]
@@ -61,15 +58,11 @@ async fn get_field_html(
   conn: Option<Connection<Cache>>,
   field: &str,
   id: &str,
-) -> Result<content::RawHtml<String>, Template> {
+) -> Result<content::RawHtml<String>, Redirect> {
   if let Some(paper) = assemble_paper_with_cache(conn, Some(field), id, false).await {
     Ok(content::RawHtml(paper))
   } else {
-    let mut map: HashMap<&str, &str> = HashMap::new();
-    let arxiv_id = format!("{}/{}", field, id);
-    map.insert("id", &arxiv_id);
-    map.insert("AR5IV_CSS_URL", AR5IV_CSS_URL);
-    Err(Template::render("404", &map))
+    Err(Redirect::temporary(format!("https://arxiv.org/abs/{}/{}", field, id)))
   }
 }
 
