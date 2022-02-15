@@ -172,6 +172,15 @@ a.ar5iv-nav-button {
 .ar5iv-nav-button-next {
   padding-left: 0.5rem;
 }
+
+.ar5iv-footer-button {
+  color: var(--link-text-color);
+  padding: 0.5rem;
+  display: inline-block;
+  text-decoration: none;
+  margin-right: 1rem;
+}
+
 a.arxiv-ui-theme {
   color: white;
   background-color: rgb(179, 27, 27)
