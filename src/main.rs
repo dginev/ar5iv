@@ -167,6 +167,11 @@ async fn pdf(id: String) -> Redirect {
 async fn assets(name: String) -> Option<NamedFile> {
   NamedFile::open(Path::new("assets/").join(name)).await.ok()
 }
+#[get("/assets/fonts/<name>")]
+async fn font_assets(name: String) -> Option<NamedFile> {
+  NamedFile::open(Path::new("assets/fonts/").join(name)).await.ok()
+}
+
 
 #[catch(404)]
 fn general_not_found(req: &Request) -> Template {
@@ -273,6 +278,7 @@ fn rocket() -> _ {
         get_field_paper_subsubdir_asset,
         about,
         assets,
+        font_assets,
         favicon,
         feeling_lucky,
         robots_txt
