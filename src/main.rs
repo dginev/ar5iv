@@ -16,7 +16,7 @@ use ar5iv::cache::{
   LuckyStore
 };
 use ar5iv::assemble_asset::{fetch_zip};
-use ar5iv::constants::AR5IV_CSS_URL;
+use ar5iv::constants::{AR5IV_CSS_URL,SITE_CSS_URL};
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -28,11 +28,16 @@ lazy_static! {
   static ref TRAILING_ZIP_EXT: Regex = Regex::new("[.]zip$").unwrap();
 }
 
-#[get("/")]
-async fn about() -> Template {
+fn default_context() -> HashMap<&'static str, &'static str> {
   let mut map: HashMap<&'static str, &'static str> = HashMap::new();
   map.insert("AR5IV_CSS_URL", AR5IV_CSS_URL);
-  Template::render("ar5iv", &map)
+  map.insert("SITE_CSS_URL", SITE_CSS_URL);
+  map
+}
+
+#[get("/")]
+async fn about() -> Template {
+  Template::render("ar5iv", default_context())
 }
 
 #[get("/favicon.ico")]
@@ -175,10 +180,9 @@ async fn font_assets(name: String) -> Option<NamedFile> {
 
 #[catch(404)]
 fn general_not_found(req: &Request) -> Template {
-  let mut map: HashMap<&str, &str> = HashMap::new();
   let uri_id = req.uri().path().to_string();
+  let mut map = default_context();
   map.insert("id", &uri_id[1..]);
-  map.insert("AR5IV_CSS_URL", AR5IV_CSS_URL);
   Template::render("404", &map)
 }
 
@@ -190,9 +194,8 @@ async fn get_log(
   if let Some(paper) = assemble_log_with_cache(conn, None, id).await {
     Ok(content::RawHtml(paper))
   } else {
-    let mut map: HashMap<&str, &str> = HashMap::new();
+    let mut map = default_context();
     map.insert("id", id);
-    map.insert("AR5IV_CSS_URL", AR5IV_CSS_URL);
     Err(Template::render("404", &map))
   }
 }
@@ -205,10 +208,10 @@ async fn get_field_log(
   if let Some(paper) = assemble_log_with_cache(conn, Some(field), id).await {
     Ok(content::RawHtml(paper))
   } else {
-    let mut map: HashMap<&str, &str> = HashMap::new();
+    let mut map = default_context();
     let arxiv_id = format!("{}/{}", field, id);
     map.insert("id", &arxiv_id);
-    map.insert("AR5IV_CSS_URL", AR5IV_CSS_URL);
+    
     Err(Template::render("404", &map))
   }
 }
