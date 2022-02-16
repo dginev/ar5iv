@@ -5,58 +5,78 @@
   font-family: "Noto Sans Mono";
   font-style: normal;
   font-weight: 700;
-  src:url(/assets/fonts/noto-sans-mono-v14-ext-700.woff2) format("woff2"); }
+  src: local("Noto Sans Mono Bold"),
+       local("NotoSansMono-Bold"),
+       url(/assets/fonts/noto-sans-mono-v14-ext-700.woff2) format("woff2"); }
 @font-face{
   font-display: fallback;
   font-family: "Noto Sans Mono";
   font-style: normal;
-  src:url(/assets/fonts/noto-sans-mono-v14-ext-regular.woff2) format("woff2"); }
+  src: local("Noto Sans Mono"),
+       local("NotoSansMono-Regular"),
+       url(/assets/fonts/noto-sans-mono-v14-ext-regular.woff2) format("woff2"); }
 
 @font-face{
   font-display: fallback;
   font-family: "Noto Sans";
   font-weight: 700;
   font-style: italic;
-  src:url(/assets/fonts/noto-sans-v25-ext-700italic.woff2) format("woff2"); }
+  src: local("Noto Sans Bold Italic"),
+       local("NotoSans-BoldItalic"),
+       url(/assets/fonts/noto-sans-v25-ext-700italic.woff2) format("woff2"); }
 @font-face{
   font-display: fallback;
   font-family: "Noto Sans";
   font-style: normal;
   font-weight: 700;
-  src:url(/assets/fonts/noto-sans-v25-ext-700.woff2) format("woff2"); }
+  src:  local("Noto Sans Bold"),
+        local("NotoSans-Bold"),
+        url(/assets/fonts/noto-sans-v25-ext-700.woff2) format("woff2"); }
 @font-face{
   font-display: fallback;
   font-family: "Noto Sans";
   font-style: italic;
-  src:url(/assets/fonts/noto-sans-v25-ext-italic.woff2) format("woff2"); }
+  src: local("Noto Sans Italic"),
+       local("NotoSans-Italic"),
+       url(/assets/fonts/noto-sans-v25-ext-italic.woff2) format("woff2"); }
 @font-face{
   font-display: fallback;
   font-family: "Noto Sans";
   font-style: normal;
-  src:url(/assets/fonts/noto-sans-v25-ext.woff2) format("woff2"); }
+  src: local("Noto Sans"),
+       local("NotoSans-Regular"),
+       url(/assets/fonts/noto-sans-v25-ext.woff2) format("woff2"); }
 
 @font-face{
   font-display: fallback;
   font-family: "Noto Serif";
   font-weight: 700;
   font-style: italic;
-  src:url(/assets/fonts/noto-serif-v20-ext-700italic.woff2) format("woff2"); }
+  src: local("Noto Serif Bold Italic"),
+       local("NotoSerif-BoldItalic"),
+       url(/assets/fonts/noto-serif-v20-ext-700italic.woff2) format("woff2"); }
 @font-face{
   font-display: fallback;
   font-family: "Noto Serif";
   font-style: normal;
   font-weight: 700;
-  src:url(/assets/fonts/noto-serif-v20-ext-700.woff2) format("woff2"); }
+  src: local("Noto Serif Bold"),
+       local("NotoSerif-Bold"),
+       url(/assets/fonts/noto-serif-v20-ext-700.woff2) format("woff2"); }
 @font-face{
   font-display: fallback;
   font-family: "Noto Serif";
   font-style: italic;
-  src:url(/assets/fonts/noto-serif-v20-ext-italic.woff2) format("woff2"); }
+  src: local("Noto Serif Italic"),
+       local("NotoSerif-Italic"),
+       url(/assets/fonts/noto-serif-v20-ext-italic.woff2) format("woff2"); }
 @font-face{
   font-display: fallback;
   font-family: "Noto Serif";
   font-style: normal;
-  src:url(/assets/fonts/noto-serif-v20-ext-regular.woff2) format("woff2"); }
+  src: local("Noto Serif"),
+       local("NotoSerif-Regular"),
+       url(/assets/fonts/noto-serif-v20-ext-regular.woff2) format("woff2"); }
 
 /*======================================================================
    ar5iv branding */
