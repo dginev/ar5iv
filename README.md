@@ -6,4 +6,4 @@ The e-journal styling of document pages is developed separately at [ar5iv-css](h
 
 Seeded via [CorTeX](https://github.com/dginev/CorTeX) data.
 
-Hosted&nbsp;&nbsp;by&nbsp;&nbsp;<a href="https://kwarc.info/projects/arXMLiv/"><img src="https://kwarc.info/public/kwarc_logo.svg" height=40 style="vertical-align: middle;"></a>
+Hosted&nbsp;&nbsp;by&nbsp;&nbsp;arXivLabs. Created by <a href="https://kwarc.info/projects/arXMLiv/"><img src="https://kwarc.info/public/kwarc_logo.svg" height=40 style="vertical-align: middle;"></a>
