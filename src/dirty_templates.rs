@@ -69,13 +69,13 @@ pub fn dirty_branded_ar5iv_html(
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content=""###+&caps[1]+r###"">
-<meta name="twitter:image:src" content="https://ar5iv.org/assets/ar5iv_card.png">
+<meta name="twitter:image:src" content="https://ar5iv.labs.arxiv.org/assets/ar5iv_card.png">
 <meta name="twitter:image:alt" content="ar5iv logo">
 <meta property="og:title" content=""###+&caps[1]+r###"">
 <meta property="og:site_name" content="ar5iv">
-<meta property="og:image" content="https://ar5iv.org/assets/ar5iv_card.png">
+<meta property="og:image" content="https://ar5iv.labs.arxiv.org/assets/ar5iv_card.png">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://ar5iv.org/html/"###+id_arxiv+r###"">
+<meta property="og:url" content="https://ar5iv.labs.arxiv.org/html/"###+id_arxiv+r###"">
 "### }).to_string();
   }
 
