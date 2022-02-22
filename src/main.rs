@@ -109,6 +109,19 @@ async fn get_paper_subsubdir_asset(
   let compound_name = subdir + "/" + subsubdir + "/" + filename;
   assemble_paper_asset_with_cache(conn, None, id, &compound_name).await
 }
+#[get("/html/<id>/assets/<subdir>/<sub2dir>/<sub3dir>/<filename>")]
+async fn get_paper_sub3dir_asset(
+  conn: Option<Connection<Cache>>,
+  id: &str,
+  subdir: String,
+  sub2dir: &str,
+  sub3dir: &str,
+  filename: &str,
+) -> Result<(ContentType, Vec<u8>), Option<NamedFile>> {
+  let compound_name = subdir + "/" + sub2dir + "/" + sub3dir + "/" + filename;
+  assemble_paper_asset_with_cache(conn, None, id, &compound_name).await
+}
+
 #[get("/html/<field>/<id>/assets/<subdir>/<filename>", rank = 2)]
 async fn get_field_paper_subdir_asset(
   conn: Option<Connection<Cache>>,
@@ -130,6 +143,20 @@ async fn get_field_paper_subsubdir_asset(
   filename: &str,
 ) -> Result<(ContentType, Vec<u8>), Option<NamedFile>> {
   let compound_name = subdir + "/" + subsubdir + "/" + filename;
+  assemble_paper_asset_with_cache(conn, Some(field), id, &compound_name).await
+}
+
+#[get("/html/<field>/<id>/assets/<subdir>/<sub2dir>/<sub3dir>/<filename>", rank = 2)]
+async fn get_field_paper_sub3dir_asset(
+  conn: Option<Connection<Cache>>,
+  field: &str,
+  id: &str,
+  subdir: String,
+  sub2dir: &str,
+  sub3dir: &str,
+  filename: &str,
+) -> Result<(ContentType, Vec<u8>), Option<NamedFile>> {
+  let compound_name = subdir + "/" + sub2dir + "/" + sub3dir + "/" + filename;
   assemble_paper_asset_with_cache(conn, Some(field), id, &compound_name).await
 }
 
@@ -276,9 +303,11 @@ fn rocket() -> _ {
         get_paper_asset,
         get_paper_subdir_asset,
         get_paper_subsubdir_asset,
+        get_paper_sub3dir_asset,
         get_field_paper_asset,
         get_field_paper_subdir_asset,
         get_field_paper_subsubdir_asset,
+        get_field_paper_sub3dir_asset,
         about,
         assets,
         font_assets,
