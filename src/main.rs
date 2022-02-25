@@ -134,6 +134,21 @@ async fn get_paper_sub4dir_asset(
   let compound_name = subdir + "/" + sub2dir + "/" + sub3dir + "/" + sub4dir + "/" + filename;
   assemble_paper_asset_with_cache(conn, None, id, &compound_name).await
 }
+#[get("/html/<id>/assets/<subdir>/<sub2dir>/<sub3dir>/<sub4dir>/<sub5dir>/<filename>")]
+#[allow(clippy::too_many_arguments)]
+async fn get_paper_sub5dir_asset(
+  conn: Option<Connection<Cache>>,
+  id: &str,
+  subdir: String,
+  sub2dir: &str,
+  sub3dir: &str,
+  sub4dir: &str,
+  sub5dir: &str,
+  filename: &str,
+) -> Result<(ContentType, Vec<u8>), Option<NamedFile>> {
+  let compound_name = subdir + "/" + sub2dir + "/" + sub3dir + "/" + sub4dir + "/" + sub5dir + "/" + filename;
+  assemble_paper_asset_with_cache(conn, None, id, &compound_name).await
+}
 
 #[get("/html/<field>/<id>/assets/<subdir>/<filename>", rank = 2)]
 async fn get_field_paper_subdir_asset(
@@ -186,6 +201,26 @@ async fn get_field_paper_sub4dir_asset(
   filename: &str,
 ) -> Result<(ContentType, Vec<u8>), Option<NamedFile>> {
   let compound_name = subdir + "/" + sub2dir + "/" + sub3dir + "/" + sub4dir + "/" + filename;
+  assemble_paper_asset_with_cache(conn, Some(field), id, &compound_name).await
+}
+
+#[get(
+  "/html/<field>/<id>/assets/<subdir>/<sub2dir>/<sub3dir>/<sub4dir>/<sub5dir>/<filename>",
+  rank = 2
+)]
+#[allow(clippy::too_many_arguments)]
+async fn get_field_paper_sub5dir_asset(
+  conn: Option<Connection<Cache>>,
+  field: &str,
+  id: &str,
+  subdir: String,
+  sub2dir: &str,
+  sub3dir: &str,
+  sub4dir: &str,
+  sub5dir: &str,
+  filename: &str,
+) -> Result<(ContentType, Vec<u8>), Option<NamedFile>> {
+  let compound_name = subdir + "/" + sub2dir + "/" + sub3dir + "/" + sub4dir + "/" + sub5dir + "/" + filename;
   assemble_paper_asset_with_cache(conn, Some(field), id, &compound_name).await
 }
 
@@ -335,11 +370,13 @@ fn rocket() -> _ {
         get_paper_subsubdir_asset,
         get_paper_sub3dir_asset,
         get_paper_sub4dir_asset,
+        get_paper_sub5dir_asset,
         get_field_paper_asset,
         get_field_paper_subdir_asset,
         get_field_paper_subsubdir_asset,
         get_field_paper_sub3dir_asset,
         get_field_paper_sub4dir_asset,
+        get_field_paper_sub5dir_asset,
         about,
         assets,
         font_assets,
