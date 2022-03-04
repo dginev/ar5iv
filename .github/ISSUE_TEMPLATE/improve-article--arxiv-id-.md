@@ -27,7 +27,7 @@ Example:
 A clear and concise description of what you think the preferred outcome should be.
 
 **Desktop (please complete the following information)**
- - OS: [e.g. iOS, Windows, Ubuntu]
+ - OS: [e.g. macOS, Windows, Ubuntu]
  - Browser [e.g. firefox, chrome, safari]
 
 **Smartphone (please complete the following information):**
