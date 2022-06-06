@@ -1,14 +1,14 @@
 use crate::assemble_asset::{assemble_log, assemble_paper, assemble_paper_asset};
 use crate::constants::LOG_FILENAME;
+use crossbeam::queue::ArrayQueue;
 use rand::seq::{IteratorRandom, SliceRandom};
+use regex::Regex;
 use rocket::fs::NamedFile;
 use rocket::http::ContentType;
+use rocket_db_pools::deadpool_redis::redis::aio;
 use rocket_db_pools::deadpool_redis::redis::{cmd, RedisError};
-use rocket_db_pools::deadpool_redis::ConnectionWrapper;
 use rocket_db_pools::Connection;
 use rocket_db_pools::{deadpool_redis, Database};
-use crossbeam::queue::ArrayQueue;
-use regex::Regex;
 
 use std::path::Path;
 lazy_static! {
@@ -18,7 +18,7 @@ lazy_static! {
 #[database("memdb")]
 pub struct Cache(deadpool_redis::Pool);
 
-pub async fn set_cached(conn: &mut ConnectionWrapper, key: &str, val: &str) -> Result<(), ()> {
+pub async fn set_cached(conn: &mut aio::Connection, key: &str, val: &str) -> Result<(), ()> {
   cmd("SET")
     .arg(&[key, val])
     .query_async::<_, ()>(conn)
@@ -26,7 +26,7 @@ pub async fn set_cached(conn: &mut ConnectionWrapper, key: &str, val: &str) -> R
     .map_err(|_| ())
 }
 
-pub async fn get_cached(conn: &mut ConnectionWrapper, key: &str) -> Result<String, ()> {
+pub async fn get_cached(conn: &mut aio::Connection, key: &str) -> Result<String, ()> {
   let value: Result<String, ()> = cmd("GET")
     .arg(&[key])
     .query_async::<_, String>(conn)
@@ -35,11 +35,7 @@ pub async fn get_cached(conn: &mut ConnectionWrapper, key: &str) -> Result<Strin
   value
 }
 
-pub async fn set_cached_asset(
-  conn: &mut ConnectionWrapper,
-  key: &str,
-  val: &[u8],
-) -> Result<(), ()> {
+pub async fn set_cached_asset(conn: &mut aio::Connection, key: &str, val: &[u8]) -> Result<(), ()> {
   cmd("SET")
     .arg(key)
     .arg(val)
@@ -47,7 +43,7 @@ pub async fn set_cached_asset(
     .await
     .map_err(|_| ())
 }
-pub async fn get_cached_asset(conn: &mut ConnectionWrapper, key: &str) -> Result<Vec<u8>, ()> {
+pub async fn get_cached_asset(conn: &mut aio::Connection, key: &str) -> Result<Vec<u8>, ()> {
   let result: Result<Vec<u8>, ()> = cmd("GET")
     .arg(&[key])
     .query_async::<_, Vec<u8>>(conn)
@@ -66,11 +62,7 @@ pub async fn get_cached_asset(conn: &mut ConnectionWrapper, key: &str) -> Result
   }
 }
 
-pub async fn hget_cached(
-  conn: &mut ConnectionWrapper,
-  hash: &str,
-  key: &str,
-) -> Result<String, ()> {
+pub async fn hget_cached(conn: &mut aio::Connection, hash: &str, key: &str) -> Result<String, ()> {
   let value: Result<String, ()> = cmd("HGET")
     .arg(hash)
     .arg(key)
@@ -86,7 +78,7 @@ pub async fn assemble_paper_with_cache(
   id_raw: &str,
   use_dom: bool,
 ) -> Option<String> {
-  let id = ARXIV_ID_VERSION.replace(id_raw,"");
+  let id = ARXIV_ID_VERSION.replace(id_raw, "");
   let cached = match conn_opt {
     Some(ref mut conn) => {
       let key = build_arxiv_id(&field_opt, &id);
@@ -107,7 +99,7 @@ pub async fn assemble_paper_asset_with_cache(
   id_raw: &str,
   filename: &str,
 ) -> Result<(ContentType, Vec<u8>), Option<NamedFile>> {
-  let id = ARXIV_ID_VERSION.replace(id_raw,"");
+  let id = ARXIV_ID_VERSION.replace(id_raw, "");
   let key = match field_opt {
     Some(ref field) => field.to_string() + &id + "/" + filename,
     None => id.to_string() + "/" + filename,
@@ -153,7 +145,7 @@ pub async fn assemble_log_with_cache(
   field_opt: Option<&str>,
   id_raw: &str,
 ) -> Option<String> {
-  let id = ARXIV_ID_VERSION.replace(id_raw,"");
+  let id = ARXIV_ID_VERSION.replace(id_raw, "");
   let key = build_arxiv_id(&field_opt, &id) + "/" + LOG_FILENAME;
   let cached = match conn_opt {
     Some(ref mut conn) => get_cached(&mut *conn, &key).await.unwrap_or_default(),
@@ -180,30 +172,33 @@ pub fn build_arxiv_id(field_opt: &Option<&str>, id: &str) -> String {
   }
 }
 
-
-pub async fn lucky_url(conn: &mut ConnectionWrapper) -> Option<String> {
+pub async fn lucky_url(conn: &mut aio::Connection) -> Option<String> {
   // it makes no sense to call this twice due to the size, just put it in a lazy static.
   let all_articles_result: Result<Vec<String>, RedisError> = cmd("HKEYS")
     .arg("paper_order")
-    .query_async::<_, Vec<String>>(conn).await;
+    .query_async::<_, Vec<String>>(conn)
+    .await;
   let all_article_ids = all_articles_result.unwrap_or_default();
   let mut rng = rand::thread_rng();
-  all_article_ids.iter().choose(&mut rng).map(|id| String::from("/html/")+id)
+  all_article_ids
+    .iter()
+    .choose(&mut rng)
+    .map(|id| String::from("/html/") + id)
 }
 
-pub struct LuckyStore(ArrayQueue<String>,ArrayQueue<String>);
+pub struct LuckyStore(ArrayQueue<String>, ArrayQueue<String>);
 impl LuckyStore {
   pub fn new() -> Self {
     LuckyStore(ArrayQueue::new(2_000_000), ArrayQueue::new(2_000_000))
   }
-  pub async fn get(&self, conn: &mut ConnectionWrapper) -> Option<String> {
+  pub async fn get(&self, conn: &mut aio::Connection) -> Option<String> {
     if self.0.is_empty() {
       if self.1.is_empty() {
         // initial call, fill up from Redis
         let all_articles_result: Result<Vec<String>, RedisError> = cmd("HKEYS")
-        .arg("paper_order")
-        .query_async::<_, Vec<String>>(conn)
-        .await;
+          .arg("paper_order")
+          .query_async::<_, Vec<String>>(conn)
+          .await;
         let mut all_article_ids = all_articles_result.unwrap_or_default();
         let mut rng = rand::thread_rng();
         all_article_ids.shuffle(&mut rng);

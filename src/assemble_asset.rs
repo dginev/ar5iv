@@ -7,12 +7,12 @@ use std::path::{Path, PathBuf};
 use zip::ZipArchive;
 
 use crate::cache::{build_arxiv_id, hget_cached, set_cached, set_cached_asset, Cache};
-use crate::paper_order::AR5IV_PAPERS_ROOT_DIR;
 use crate::constants::LOG_FILENAME;
-use crate::dirty_templates::{log_to_html,dirty_branded_ar5iv_html};
+use crate::dirty_templates::{dirty_branded_ar5iv_html, log_to_html};
 use crate::dom_templates::branded_ar5iv_html;
+use crate::paper_order::AR5IV_PAPERS_ROOT_DIR;
 
-#[derive(Debug, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd)]
 pub enum LatexmlStatus {
   Ok,
   Warning,
@@ -25,7 +25,7 @@ impl LatexmlStatus {
       LatexmlStatus::Ok => "ar5iv-severity-ok",
       LatexmlStatus::Warning => "ar5iv-severity-warning",
       LatexmlStatus::Error => "ar5iv-severity-error",
-      LatexmlStatus::Fatal => "ar5iv-severity-fatal"
+      LatexmlStatus::Fatal => "ar5iv-severity-fatal",
     }
   }
 }
