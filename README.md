@@ -8,6 +8,6 @@ Authors can reproduce locally using [ar5ivist](https://github.com/dginev/ar5ivis
 
 Seeded via [CorTeX](https://github.com/dginev/CorTeX) data.
 
-Hosted by arXivLabs.
+Hosted by [arXivLabs](https://blog.arxiv.org/2022/02/21/arxiv-articles-as-responsive-web-pages/).
 
 Created&nbsp;&nbsp;by&nbsp;&nbsp;<a href="https://kwarc.info/projects/arXMLiv/"><img src="https://kwarc.info/public/kwarc_logo.svg" height=40 style="vertical-align: middle;"></a>
