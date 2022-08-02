@@ -4,6 +4,8 @@ A web service offering HTML5 articles from [arXiv.org](https://arxiv.org/) as co
 
 The e-journal styling of document pages is developed separately at [ar5iv-css](https://github.com/dginev/ar5iv-css).
 
+Authors can reproduce locally using [ar5ivist](https://github.com/dginev/ar5ivist).
+
 Seeded via [CorTeX](https://github.com/dginev/CorTeX) data.
 
 Hosted by arXivLabs.
