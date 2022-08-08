@@ -37,9 +37,9 @@ pub fn dirty_branded_ar5iv_html(
   } else {
     // ensure we have a lang attribute otherwise, English being most common in arXiv
     main_content = main_content.replacen("<html>", "<html lang=\"en\">", 1);
-       
+
     // Note: replacen would be faster, but we can't access the title content
-    // .replacen("<title>", &format!("<title>[{}] ",id_arxiv), 1);    
+    // .replacen("<title>", &format!("<title>[{}] ",id_arxiv), 1);
     main_content = TITLE_ELEMENT.replace(&main_content, |caps: &Captures| {
       // *IF* we have an abstract, fish out a description, using the most sinful of regex judo
       // YES, this is bad, but have you tried re-serializing the DOM for a 400-page book with cross-referenced MathML?
@@ -64,7 +64,7 @@ pub fn dirty_branded_ar5iv_html(
         String::default()
       };
       // 1. also add the arxiv id to the title element
-      // 2. this is also the best place to insert vendor-specific meta tags  
+      // 2. this is also the best place to insert vendor-specific meta tags
       String::from("<title>[")+id_arxiv+"] "+&caps[1]+"</title>"+&description+r###"
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="twitter:card" content="summary">
@@ -155,7 +155,7 @@ Conversion to HTML had a Fatal error and exited abruptly. This document may be t
     + r###"" class="ar5iv-text-button "###
     + status_css_class
     + r###"">Conversion<br>report</a>
-    <a class="ar5iv-text-button" href="https://github.com/dginev/ar5iv/issues/new?template=improve-article--arxiv-id-.md&title=Improve+article+"###+id_arxiv+
+    <a class="ar5iv-text-button" target="_blank" href="https://github.com/dginev/ar5iv/issues/new?template=improve-article--arxiv-id-.md&title=Improve+article+"###+id_arxiv+
     r###"">Report<br>an issue</a>
     <a href="https://arxiv.org/abs/"###
     + id_arxiv
@@ -198,9 +198,9 @@ Conversion to HTML had a Fatal error and exited abruptly. This document may be t
                 body.removeChild(message);
                 body.firstElementChild.removeAttribute('style');
               }); } } };
-      }      
+      }
     </script>"###,
-    // Let's experiment with an inline bibitem preview 
+    // Let's experiment with an inline bibitem preview
     r###"
     <script>
     // Auxiliary function, building the preview feature when
@@ -217,7 +217,7 @@ Conversion to HTML had a Fatal error and exited abruptly. This document may be t
       document.querySelectorAll('span.ar5iv-bibitem-preview').forEach(function(node) {
         node.remove();
       })
-      
+
       // Create the preview
       preview = document.createElement('span');
       preview.setAttribute('class','ar5iv-bibitem-preview');
@@ -264,9 +264,9 @@ Conversion to HTML had a Fatal error and exited abruptly. This document may be t
       document.documentElement.setAttribute("data-theme", "dark");
     } else {
       document.documentElement.setAttribute("data-theme", "light"); } }
-  
+
   detectColorScheme();
-  
+
   function toggleColorScheme(){
     var current_theme = localStorage.getItem("ar5iv_theme");
     if (current_theme) {
