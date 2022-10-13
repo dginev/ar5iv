@@ -6,7 +6,7 @@ use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 use zip::ZipArchive;
 
-use crate::cache::{build_arxiv_id, hget_cached, set_cached, set_cached_asset, Cache};
+use crate::cache::{build_arxiv_id, hget_cached, set_cached, set_cached_asset, Cache, TEN_MIB, TWO_AND_A_HALF_MIB};
 use crate::constants::LOG_FILENAME;
 use crate::dirty_templates::{dirty_branded_ar5iv_html, log_to_html};
 use crate::dom_templates::branded_ar5iv_html;
@@ -82,18 +82,22 @@ pub async fn assemble_paper(
       }
       // if we found assets, cache them.
       for (key, val) in assets.into_iter() {
-        let cache_key = format!("{}/{}", id_arxiv, &key);
-        if let Some(ref mut conn) = conn_opt {
-          set_cached_asset(conn, cache_key.as_str(), &val).await.ok();
+        if val.len() <= TEN_MIB { // cap using the cache at 10 MiB
+          let cache_key = format!("{}/{}", id_arxiv, &key);
+          if let Some(ref mut conn) = conn_opt {
+            set_cached_asset(conn, cache_key.as_str(), &val).await.ok();
+          }
         }
       }
       // the log is dealt with under the /log/ route
       // but since we have it here, cache it
-      if !log.is_empty() {
+      // (cap cache items at 10 MiB, where a char is 4 bytes)
+      if !log.is_empty() && log.len() <= TWO_AND_A_HALF_MIB {
         status = log_to_status(&log);
         let cache_key = format!("{}/{}", id_arxiv, LOG_FILENAME);
         if let Some(ref mut conn) = conn_opt {
-          set_cached(conn, &cache_key, &log_to_html(&log, &id_arxiv))
+          let html_log = log_to_html(&log, &id_arxiv);
+          set_cached(conn, &cache_key, &html_log)
             .await
             .ok();
         }
@@ -123,10 +127,12 @@ pub async fn assemble_paper(
       } else {
         dirty_branded_ar5iv_html(html, &id_arxiv, status, prev, next)
       };
-      if let Some(ref mut conn) = conn_opt {
-        set_cached(&mut *conn, &id_arxiv, branded_html.as_str())
-          .await
-          .ok();
+      if branded_html.len() < TWO_AND_A_HALF_MIB { // cap cache items at 10 MiB, where a char is 4 bytes
+        if let Some(ref mut conn) = conn_opt {
+          set_cached(&mut *conn, &id_arxiv, branded_html.as_str())
+            .await
+            .ok();
+        }
       }
       Some(branded_html)
     } else {

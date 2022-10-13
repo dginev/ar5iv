@@ -9,11 +9,15 @@ use rocket_db_pools::deadpool_redis::redis::aio;
 use rocket_db_pools::deadpool_redis::redis::{cmd, RedisError};
 use rocket_db_pools::Connection;
 use rocket_db_pools::{deadpool_redis, Database};
-
 use std::path::Path;
+
+pub const TEN_MIB: usize = 10_485_760; // u8 is 1 byte
+pub const TWO_AND_A_HALF_MIB: usize = 2_621_440; //a char is 4 bytes
+
 lazy_static! {
   static ref ARXIV_ID_VERSION: Regex = Regex::new("v\\d\\d?$").unwrap();
 }
+
 #[derive(Database)]
 #[database("memdb")]
 pub struct Cache(deadpool_redis::Pool);
@@ -118,8 +122,10 @@ pub async fn assemble_paper_asset_with_cache(
           .ok(),
       )
     } else {
-      if let Some(ref mut conn) = conn_opt {
-        set_cached_asset(&mut *conn, &key, &asset).await.ok();
+      if asset.len() <= TEN_MIB { // cap cache items at 10 MiB
+        if let Some(ref mut conn) = conn_opt {
+          set_cached_asset(&mut *conn, &key, &asset).await.ok();
+        }
       }
       Ok(asset)
     }
@@ -154,8 +160,11 @@ pub async fn assemble_log_with_cache(
   if !cached.is_empty() {
     Some(cached)
   } else if let Some(paper) = assemble_log(field_opt, &id).await {
-    if let Some(mut conn) = conn_opt {
-      set_cached(&mut conn, &key, paper.as_str()).await.ok();
+    // (cap cache items at 10 MiB, where a char is 4 bytes)
+    if !paper.is_empty() && paper.len() <= TWO_AND_A_HALF_MIB {
+      if let Some(mut conn) = conn_opt {
+        set_cached(&mut conn, &key, paper.as_str()).await.ok();
+      }
     }
     Some(paper)
   } else {
