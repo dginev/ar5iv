@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
   <title>ar5iv – Articles from arXiv.org as responsive HTML5 web documents</title>
@@ -24,7 +24,7 @@
     <div class="ar5iv-homepage-content ltx_page_content">
       <article class="ltx_document">
         <h1 class="ltx_title ltx_title_document">
-          <img alt="ar5iv logo" src="/assets/ar5iv.png" height="64"><br>
+          <img alt="ar5iv logo" class="ar5iv_logo" src="/assets/ar5iv_halloween.png" height="72"><br>
           Articles from <a class="ltx_ref" href="https://arxiv.org/">arXiv.org</a> as
           responsive HTML<span style="color:#e44d26">5</span> web pages.
         </h1>

@@ -148,7 +148,7 @@ Conversion to HTML had a Fatal error and exited abruptly. This document may be t
     + "<div class=\"ar5iv-footer\">"
     + &prev_html
     + r###"
-    <a class="ar5iv-home-button" href="/"><img height="40" alt="ar5iv homepage" src="/assets/ar5iv.png"></a>
+    <a class="ar5iv-home-button" href="/"><img height="56" alt="ar5iv homepage" class="ar5iv_logo" src="/assets/ar5iv_halloween.png"></a>
     <a href="/feeling_lucky" class="ar5iv-text-button">Feeling<br>lucky?</a>
     <a href="/log/"###
     + id_arxiv
@@ -251,15 +251,13 @@ Conversion to HTML had a Fatal error and exited abruptly. This document may be t
   let pre_js_and_css = String::from(r###"
 <script>
   function detectColorScheme(){
-    var theme="light";
-    var current_theme = localStorage.getItem("ar5iv_theme");
+    var theme="dark";
+    var current_theme = localStorage.getItem("halloween_theme");
     if(current_theme){
-      if(current_theme == "dark"){
-        theme = "dark";
+      if(current_theme == "light"){
+        theme = "light";
       } }
     else if(!window.matchMedia) { return false; }
-    else if(window.matchMedia("(prefers-color-scheme: dark)").matches) {
-      theme = "dark"; }
     if (theme=="dark") {
       document.documentElement.setAttribute("data-theme", "dark");
     } else {
@@ -268,14 +266,14 @@ Conversion to HTML had a Fatal error and exited abruptly. This document may be t
   detectColorScheme();
 
   function toggleColorScheme(){
-    var current_theme = localStorage.getItem("ar5iv_theme");
+    var current_theme = localStorage.getItem("halloween_theme");
     if (current_theme) {
       if (current_theme == "light") {
-        localStorage.setItem("ar5iv_theme", "dark"); }
+        localStorage.setItem("halloween_theme", "dark"); }
       else {
-        localStorage.setItem("ar5iv_theme", "light"); } }
+        localStorage.setItem("halloween_theme", "light"); } }
     else {
-        localStorage.setItem("ar5iv_theme", "dark"); }
+        localStorage.setItem("halloween_theme", "dark"); }
     detectColorScheme(); }
 </script>
 <link media="all" rel="stylesheet" href=""###)
