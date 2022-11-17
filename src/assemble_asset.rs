@@ -42,7 +42,7 @@ pub async fn assemble_paper(
   if let Some(paper_path) = build_paper_path(field_opt, id) {
     let id_arxiv = build_arxiv_id(&field_opt, id);
     if let Ok(Ok(mut zip)) = spawn_blocking(move || {
-      let zipf = File::open(&paper_path)?;
+      let zipf = File::open(paper_path)?;
       let reader = BufReader::new(zipf);
       ZipArchive::new(reader)
     })
@@ -150,7 +150,7 @@ pub async fn assemble_paper_asset(
 ) -> Option<Vec<u8>> {
   if let Some(paper_path) = build_paper_path(field_opt, id) {
     if let Ok(mut zip) = spawn_blocking(move || {
-      let zipf = File::open(&paper_path).unwrap();
+      let zipf = File::open(paper_path).unwrap();
       let reader = BufReader::new(zipf);
       ZipArchive::new(reader).unwrap()
     })
@@ -173,7 +173,7 @@ pub async fn assemble_paper_asset(
 
 pub fn fetch_zip(field_opt: Option<&str>, id: &str) -> Option<(ContentType, Vec<u8>)> {
   if let Some(paper_path) = build_source_zip_path(field_opt, id) {
-    let zipf = File::open(&paper_path).unwrap();
+    let zipf = File::open(paper_path).unwrap();
     let mut reader = BufReader::new(zipf);
     let mut payload = Vec::new();
     reader.read_to_end(&mut payload).ok();
@@ -190,7 +190,7 @@ pub fn fetch_zip(field_opt: Option<&str>, id: &str) -> Option<(ContentType, Vec<
 pub async fn assemble_log(field_opt: Option<&str>, id: &str) -> Option<String> {
   if let Some(paper_path) = build_paper_path(field_opt, id) {
     if let Ok(mut zip) = spawn_blocking(move || {
-      let zipf = File::open(&paper_path).unwrap();
+      let zipf = File::open(paper_path).unwrap();
       let reader = BufReader::new(zipf);
       ZipArchive::new(reader).unwrap()
     })
