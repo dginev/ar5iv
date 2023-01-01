@@ -39,7 +39,7 @@
                 live
                 preview
                 service.</li>
-              <li style="margin-bottom: 2rem;">For articles with multiple revisions, only the initial v1 is made
+              <li style="margin-bottom: 2rem;">For articles with multiple revisions, only the <span class="ltx_font_bold">newest version</span> is made
                 available.</li>
               <li style="margin-bottom: 5rem;"><span class="ltx_font_bold">Goal:</span> incremental improvement until
                 worthy of native arXiv
