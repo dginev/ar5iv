@@ -213,7 +213,7 @@ impl LuckyStore {
         all_article_ids.shuffle(&mut rng);
         // seed the thread-safe datastructure
         for id in all_article_ids.into_iter() {
-          self.0.push(id).unwrap();
+          self.0.push(id).unwrap_or_default();
         }
       } else {
         // rotate and reshuffle, the verbose way
@@ -224,7 +224,7 @@ impl LuckyStore {
         let mut rng = rand::thread_rng();
         buffer.shuffle(&mut rng);
         for id in buffer.into_iter() {
-          self.0.push(id).unwrap();
+          self.0.push(id).unwrap_or_default();
         }
       }
     }
