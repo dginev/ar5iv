@@ -35,8 +35,12 @@ pub fn dirty_branded_ar5iv_html(
   if main_content.is_empty() {
     main_content = DOC_NOT_FOUND_TEMPLATE.to_string();
   } else {
-    // ensure we have a lang attribute otherwise, English being most common in arXiv
-    main_content = main_content.replacen("<html>", "<html lang=\"en\">", 1);
+    // Global replacements:
+    // 1. ensure we have a lang attribute otherwise, English being most common in arXiv
+    main_content = main_content.replacen("<html>", "<html lang=\"en\">", 1)
+    // 2. completely unrelated, drop all "invisible times" characters (U+2062) until
+    //    latexml's grammar starts producing them more sparingly.
+      .replace(">\u{2062}"," lspace='0px' rspace='0px'>");
 
     // Note: replacen would be faster, but we can't access the title content
     // .replacen("<title>", &format!("<title>[{}] ",id_arxiv), 1);
