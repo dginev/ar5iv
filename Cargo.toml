@@ -14,6 +14,9 @@ rand = "0.8.4"
 crossbeam = "0.8.1"
 libxml = "0.3.0"
 unicode-segmentation = "1.8.0"
+rocket ="0.5.0"
+rocket_dyn_templates = {version="0.1.0", features = ["tera"]}
+rocket_db_pools = { version = "0.1.0", features = ["deadpool_redis"]}
 
 [[bin]]
 path = "src/main.rs"
@@ -29,17 +32,3 @@ criterion = {version = "0.3.5", features=["async_tokio"]}
 [[bench]]
 name = "dirty_render"
 harness = false
-
-[dependencies.rocket]
-git="https://github.com/SergioBenitez/Rocket"
-version="0.5.0-rc.2"
-
-[dependencies.rocket_dyn_templates]
-git="https://github.com/SergioBenitez/Rocket"
-version = "0.1.0-rc.2"
-features = ["tera"]
-
-[dependencies.rocket_db_pools]
-git="https://github.com/SergioBenitez/Rocket"
-version = "0.1.0-rc"
-features = ["deadpool_redis"]
