@@ -36,7 +36,7 @@ fn main() -> redis::RedisResult<()> {
       }
     }
     if buffer.len() > 100 {
-      save_to_cache(&mut conn, buffer.drain(..).collect())?;
+      save_to_cache(&mut conn, std::mem::take(&mut buffer))?;
     }
   }
 

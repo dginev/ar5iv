@@ -1,0 +1,179 @@
+/*======================================================================
+   ar5iv branding */
+div.ar5iv-footer {
+  vertical-align: middle;
+  margin-left: auto;
+  margin-right:auto;
+  margin-top: 5rem;
+  margin-bottom: 5rem;
+  text-align: center;
+  max-width: var(--main-width);
+}
+
+.ar5iv-homepage {
+  position: relative;
+}
+.ar5iv-homepage-content {
+  padding-bottom: 1.5rem;
+}
+.ar5iv-homepage-main-list {
+  list-style-type: circle;
+}
+@media only screen and (max-width: 40.0rem) {
+  .ar5iv-homepage-main-list {
+    padding-left: 1.5rem;
+  }
+}
+footer.ar5iv-homepage-footer {
+  border:none;
+  text-align: center;
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  height: 2.5rem;
+}
+footer.ar5iv-homepage-footer svg {
+  background-color: var(--background-color);
+  color: var(--text-color);
+  filter:initial;
+}
+
+.ar5iv-text-button {
+  max-width: 10rem;
+  display: inline-block;
+  color:var(--text-color);
+  border-radius: 1.1rem;
+  font-size: 0.9rem;
+  padding-top: 0.05rem;
+  padding-bottom: 0.05rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  margin-top: 1rem;
+  vertical-align: top;
+  border: none;
+  text-decoration: none;
+  overflow-wrap: break-word;
+}
+.ar5iv-home-button {
+  text-decoration: none;
+  display: inline-block;
+  margin-top: 0.9rem;
+  vertical-align: bottom;
+}
+.ar5iv-home-button > img {
+  border-radius: 1.1rem;
+}
+.color-scheme-icon::before {
+  content: "🌙";
+}
+[data-theme="dark"] .color-scheme-icon::before {
+  content: "☀️";
+}
+.ar5iv-toggle-color-scheme {
+  text-decoration: none;
+  display: block;
+  float: left;
+  padding: 0.5rem;
+  margin-top: 0.1rem;
+  color: transparent;
+  text-shadow: 0 0 0 var(--text-color);
+}
+a.ar5iv-nav-button {
+  font-size: 2rem;
+  color: var(--link-text-color);
+  text-decoration: none;
+  display: inline-block;
+  margin-top: 0.75rem;
+  vertical-align: top;
+}
+.ar5iv-nav-button-prev {
+  padding-right: 0.5rem;
+}
+.ar5iv-nav-button-next {
+  padding-left: 0.5rem;
+}
+
+.ar5iv-footer-button {
+  color: var(--link-text-color);
+  padding: 0.5rem;
+  display: inline-block;
+  text-decoration: none;
+  margin-right: 1rem;
+}
+
+a.arxiv-ui-theme {
+  color: white;
+  background-color: rgb(179, 27, 27)
+}
+
+.ar5iv-severity-ok::after {
+  content: " (OK)";
+  color: var(--text-color);
+}
+.ar5iv-severity-warning::after {
+  content: " (W)";
+  color: var(--warning-text-color);
+}
+.ar5iv-severity-error::after {
+  content: " (E)";
+  color: var(--error-text-color);
+}
+.ar5iv-severity-fatal::after {
+  content: " (F)";
+  color: var(--fatal-text-color);
+}
+
+.ar5iv-bibitem-preview {
+  z-index: 100;
+  position: absolute;
+  background-color: var(--background-color);
+  color: var(--text-color);
+  border: solid 1px var(--border-color);
+  display: block;
+  min-width: 20rem;
+  max-width: 40rem;
+  min-height: 4rem;
+  max-height: 16rem;
+  padding: 0.5rem;
+}
+.ar5iv-button-close-preview {
+  float: right;
+  display: block;
+  margin: 0.2rem 0rem 0rem 0.2rem;
+  background-color: var(--background-color);
+  color: var(--text-color);
+  border: double 2px var(--border-color);
+}
+
+/* Hide the polyfill dirty work behind a curtain */
+#mathjax-loading-message {
+  display: block;
+  font-size:1.5rem;
+  margin:auto;
+  max-width: 52rem;
+  text-align: center;
+  padding: 6rem;
+  z-index: 100;
+}
+#mathjax-loading-spinner {
+  display: block;
+  margin:auto;
+  background-color: white;
+  z-index: 100;
+  border: 16px solid #f3f3f3; /* Light grey */
+  border-top: 16px solid #3498db; /* Blue */
+  border-radius: 50%;
+  width: 6rem;
+  height: 6rem;
+  animation: spin 2s linear infinite;
+}
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* one important override specific to the ar5iv site,
+  to keep the color mode toggle nicely inline */
+.ltx_page_logo {
+  display: inline-block !important;
+}
