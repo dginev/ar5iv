@@ -15,8 +15,8 @@ use ar5iv::cache::{
   assemble_log_with_cache, assemble_paper_asset_with_cache, assemble_paper_with_cache, Cache,
   LuckyStore
 };
-use ar5iv::assemble_asset::{fetch_zip};
-use ar5iv::constants::{AR5IV_CSS_URL,SITE_CSS_URL};
+use ar5iv::assemble_asset::fetch_zip;
+use ar5iv::constants::{AR5IV_FONTS_CSS_URL,AR5IV_CSS_URL,SITE_CSS_URL};
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -30,6 +30,7 @@ lazy_static! {
 
 fn default_context() -> HashMap<&'static str, &'static str> {
   let mut map: HashMap<&'static str, &'static str> = HashMap::new();
+  map.insert("AR5IV_FONTS_CSS_URL", AR5IV_FONTS_CSS_URL);
   map.insert("AR5IV_CSS_URL", AR5IV_CSS_URL);
   map.insert("SITE_CSS_URL", SITE_CSS_URL);
   map
@@ -261,11 +262,11 @@ async fn pdf(id: String) -> Redirect {
 }
 
 #[get("/assets/<name>")]
-async fn assets(name: String) -> Option<NamedFile> {
+async fn assets(name: &str) -> Option<NamedFile> {
   NamedFile::open(Path::new("assets/").join(name)).await.ok()
 }
 #[get("/assets/fonts/<name>")]
-async fn font_assets(name: String) -> Option<NamedFile> {
+async fn font_assets(name: &str) -> Option<NamedFile> {
   NamedFile::open(Path::new("assets/fonts/").join(name)).await.ok()
 }
 
@@ -303,7 +304,7 @@ async fn get_field_log(
     let mut map = default_context();
     let arxiv_id = format!("{}/{}", field, id);
     map.insert("id", &arxiv_id);
-    
+
     Err(Template::render("404", &map))
   }
 }
@@ -334,7 +335,7 @@ async fn feeling_lucky(lucky_store: &State<LuckyStore>, conn_opt: Option<Connect
 
 #[get("/robots.txt")]
 fn robots_txt() -> (ContentType, &'static str) {
-  (ContentType::Plain, 
+  (ContentType::Plain,
 r###"User-agent: *
 Disallow: /log/
 "###) }

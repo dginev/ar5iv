@@ -1,5 +1,5 @@
 use crate::assemble_asset::LatexmlStatus;
-use crate::constants::{AR5IV_CSS_URL, DOC_NOT_FOUND_TEMPLATE, SITE_CSS_URL};
+use crate::constants::{AR5IV_CSS_URL, AR5IV_FONTS_CSS_URL, DOC_NOT_FOUND_TEMPLATE, SITE_CSS_URL};
 use regex::{Captures, Regex};
 use std::borrow::Cow;
 use unicode_segmentation::UnicodeSegmentation;
@@ -283,6 +283,8 @@ Conversion to HTML had a Fatal error and exited abruptly. This document may be t
     detectColorScheme(); }
 </script>
 <link media="all" rel="stylesheet" href=""###)
+  + AR5IV_FONTS_CSS_URL
+  + "\"><link media=\"all\" rel=\"stylesheet\" href=\""
   + AR5IV_CSS_URL
   + "\"><link media=\"all\" rel=\"stylesheet\" href=\""
   + SITE_CSS_URL
@@ -304,6 +306,8 @@ pub fn log_to_html(conversion_report: &str, id_arxiv: &str) -> String {
     + r###"</title>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <meta name="robots" content="noindex">
+<link media="all" rel="stylesheet" href=""###
+    + AR5IV_FONTS_CSS_URL+ r###"">
 <link media="all" rel="stylesheet" href=""###
     + AR5IV_CSS_URL
     + r###"">
