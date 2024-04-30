@@ -33,6 +33,9 @@
         <div id="S1" class="ltx_section" style="margin-top: 5rem;">
           <div class="ltx_para">
             <ul class="ar5iv-homepage-main-list">
+              <li style="margin-bottom: 2rem;"><span style="color:#e44d26">NEW:</span> ar5iv-04.2024 dataset is now 
+                <a class="ltx_ref" href="https://sigmathling.kwarc.info/resources/ar5iv-dataset-2024/">available for download</a>.
+              </li>
               <li style="margin-bottom: 2rem;">Converted from TeX with <a class="ltx_ref"
                   href="https://github.com/brucemiller/LaTeXML">LaTeXML</a>.
               </li>
