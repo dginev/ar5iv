@@ -1,6 +1,6 @@
 pub static LOG_FILENAME: &str = "cortex.log";
-pub static AR5IV_CSS_URL: &str = "/assets/ar5iv.0.7.9.min.css";
-pub static AR5IV_FONTS_CSS_URL: &str = "/assets/ar5iv-fonts.0.7.9.min.css";
+pub static AR5IV_CSS_URL: &str = "/assets/ar5iv.0.8.0.min.css";
+pub static AR5IV_FONTS_CSS_URL: &str = "/assets/ar5iv-fonts.0.8.0.min.css";
 pub static SITE_CSS_URL: &str = "/assets/ar5iv-site.0.2.2.css";
 
 pub static DOC_NOT_FOUND_TEMPLATE : &str = r###"<!DOCTYPE html>
