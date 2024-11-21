@@ -80,6 +80,7 @@ pub fn dirty_branded_ar5iv_html(
 <meta property="og:image" content="https://ar5iv.labs.arxiv.org/assets/ar5iv_card.png">
 <meta property="og:type" content="article">
 <meta property="og:url" content="https://ar5iv.labs.arxiv.org/html/"###+id_arxiv+r###"">
+<link rel="canonical" href="https://ar5iv.labs.arxiv.org/html/"### +id_arxiv+r###"">
 "### }).to_string();
   }
 
