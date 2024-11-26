@@ -155,6 +155,7 @@ Conversion to HTML had a Fatal error and exited abruptly. This document may be t
     + r###"
     <a class="ar5iv-home-button" href="/"><img height="40" alt="ar5iv homepage" src="/assets/ar5iv.png"></a>
     <a href="/feeling_lucky" class="ar5iv-text-button">Feeling<br>lucky?</a>
+    <a href="/land_of_honey_and_milk" rel="nofollow" aria-hidden="true" tabindex="-1"></a>
     <a href="/log/"###
     + id_arxiv
     + r###"" class="ar5iv-text-button "###
