@@ -16,7 +16,7 @@ libxml = "0.3.0"
 unicode-segmentation = "1.8.0"
 rocket ="0.5.0"
 rocket_dyn_templates = {version="0.1.0", features = ["tera"]}
-rocket_db_pools = { version = "0.1.0", features = ["deadpool_redis"]}
+rocket_db_pools = { version = "0.2.0", features = ["deadpool_redis"]}
 
 [[bin]]
 path = "src/main.rs"
