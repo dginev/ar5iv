@@ -127,8 +127,7 @@ Conversion to HTML had a Fatal error and exited abruptly. This document may be t
   // If a conversion log is present, attach it as a trailing section
   let prev_html = if let Some(prev_id) = prev {
     format!(
-      "<a href=\"/html/{}\" class=\"ar5iv-nav-button ar5iv-nav-button-prev\">◄</a>",
-      prev_id
+      "<a href=\"/html/{prev_id}\" class=\"ar5iv-nav-button ar5iv-nav-button-prev\">◄</a>"
     )
   } else {
     String::from(
@@ -137,8 +136,7 @@ Conversion to HTML had a Fatal error and exited abruptly. This document may be t
   };
   let next_html = if let Some(next_id) = next {
     format!(
-      "<a href=\"/html/{}\" class=\"ar5iv-nav-button ar5iv-nav-button-next\">►</a>",
-      next_id
+      "<a href=\"/html/{next_id}\" class=\"ar5iv-nav-button ar5iv-nav-button-next\">►</a>"
     )
   } else {
     String::from(

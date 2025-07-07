@@ -28,7 +28,7 @@ fn main() -> redis::RedisResult<()> {
             first = prev.to_string();
             second = id.to_string();
           } else if !prev_prev.is_empty() {
-            buffer.push((prev.to_string(), format!("{};{}", prev_prev, id)));
+            buffer.push((prev.to_string(), format!("{prev_prev};{id}")));
           }
           prev_prev = prev;
           prev = id.to_string();
@@ -40,8 +40,8 @@ fn main() -> redis::RedisResult<()> {
     }
   }
 
-  buffer.push((first.to_string(), format!("{};{}", prev, second)));
-  buffer.push((prev, format!("{};{}", prev_prev, first)));
+  buffer.push((first.to_string(), format!("{prev};{second}")));
+  buffer.push((prev, format!("{prev_prev};{first}")));
   save_to_cache(&mut conn, buffer)
 }
 

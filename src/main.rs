@@ -56,7 +56,7 @@ async fn get_html(
   if let Some(paper) = assemble_paper_with_cache(conn, None, id, false).await {
     Ok(content::RawHtml(paper))
   } else {
-    Err(Redirect::temporary(format!("https://arxiv.org/abs/{}",id)))
+    Err(Redirect::temporary(format!("https://arxiv.org/abs/{id}")))
   }
 }
 #[get("/html/<field>/<id>")]
@@ -68,7 +68,7 @@ async fn get_field_html(
   if let Some(paper) = assemble_paper_with_cache(conn, Some(field), id, false).await {
     Ok(content::RawHtml(paper))
   } else {
-    Err(Redirect::temporary(format!("https://arxiv.org/abs/{}/{}", field, id)))
+    Err(Redirect::temporary(format!("https://arxiv.org/abs/{field}/{id}")))
   }
 }
 
@@ -302,7 +302,7 @@ async fn get_field_log(
     Ok(content::RawHtml(paper))
   } else {
     let mut map = default_context();
-    let arxiv_id = format!("{}/{}", field, id);
+    let arxiv_id = format!("{field}/{id}");
     map.insert("id", &arxiv_id);
 
     Err(Template::render("404", &map))

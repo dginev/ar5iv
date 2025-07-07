@@ -94,7 +94,7 @@ pub async fn assemble_paper(
       // (cap cache items at 10 MiB, where a char is 4 bytes)
       if !log.is_empty() && log.len() <= TWO_AND_A_HALF_MIB {
         status = log_to_status(&log);
-        let cache_key = format!("{}/{}", id_arxiv, LOG_FILENAME);
+        let cache_key = format!("{id_arxiv}/{LOG_FILENAME}");
         if let Some(ref mut conn) = conn_opt {
           let html_log = log_to_html(&log, &id_arxiv);
           set_cached(conn, &cache_key, &html_log)
@@ -200,7 +200,7 @@ pub async fn assemble_log(field_opt: Option<&str>, id: &str) -> Option<String> {
         let mut conversion_report: String = String::new();
         asset.read_to_string(&mut conversion_report).ok();
         let id_arxiv = if let Some(ref field) = field_opt {
-          format!("{}/{}", field, id)
+          format!("{field}/{id}")
         } else {
           id.to_owned()
         };

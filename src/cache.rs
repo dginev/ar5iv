@@ -139,7 +139,7 @@ pub async fn assemble_paper_asset_with_cache(
 
   asset_opt.map(|asset| {
     (
-      ContentType::from_extension(filename.split('.').last().unwrap_or("png"))
+      ContentType::from_extension(filename.split('.').next_back().unwrap_or("png"))
         .unwrap_or(ContentType::PNG),
       asset,
     )
@@ -175,7 +175,7 @@ pub async fn assemble_log_with_cache(
 /// We universally use the arxiv id scheme for both arxiv id refs and cache keys.
 pub fn build_arxiv_id(field_opt: &Option<&str>, id: &str) -> String {
   if let Some(ref field) = field_opt {
-    format!("{}/{}", field, id)
+    format!("{field}/{id}")
   } else {
     id.to_owned()
   }
