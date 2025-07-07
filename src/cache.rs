@@ -22,7 +22,11 @@ lazy_static! {
 #[database("memdb")]
 pub struct Cache(deadpool_redis::Pool);
 
-pub async fn set_cached(conn: &mut aio::Connection, key: &str, val: &str) -> Result<(), ()> {
+pub async fn set_cached(
+  conn: &mut aio::MultiplexedConnection,
+  key: &str,
+  val: &str,
+) -> Result<(), ()> {
   cmd("SET")
     .arg(&[key, val])
     .query_async::<_, ()>(conn)
@@ -30,7 +34,7 @@ pub async fn set_cached(conn: &mut aio::Connection, key: &str, val: &str) -> Res
     .map_err(|_| ())
 }
 
-pub async fn get_cached(conn: &mut aio::Connection, key: &str) -> Result<String, ()> {
+pub async fn get_cached(conn: &mut aio::MultiplexedConnection, key: &str) -> Result<String, ()> {
   let value: Result<String, ()> = cmd("GET")
     .arg(&[key])
     .query_async::<_, String>(conn)
@@ -39,7 +43,11 @@ pub async fn get_cached(conn: &mut aio::Connection, key: &str) -> Result<String,
   value
 }
 
-pub async fn set_cached_asset(conn: &mut aio::Connection, key: &str, val: &[u8]) -> Result<(), ()> {
+pub async fn set_cached_asset(
+  conn: &mut aio::MultiplexedConnection,
+  key: &str,
+  val: &[u8],
+) -> Result<(), ()> {
   cmd("SET")
     .arg(key)
     .arg(val)
@@ -47,7 +55,10 @@ pub async fn set_cached_asset(conn: &mut aio::Connection, key: &str, val: &[u8])
     .await
     .map_err(|_| ())
 }
-pub async fn get_cached_asset(conn: &mut aio::Connection, key: &str) -> Result<Vec<u8>, ()> {
+pub async fn get_cached_asset(
+  conn: &mut aio::MultiplexedConnection,
+  key: &str,
+) -> Result<Vec<u8>, ()> {
   let result: Result<Vec<u8>, ()> = cmd("GET")
     .arg(&[key])
     .query_async::<_, Vec<u8>>(conn)
@@ -66,7 +77,11 @@ pub async fn get_cached_asset(conn: &mut aio::Connection, key: &str) -> Result<V
   }
 }
 
-pub async fn hget_cached(conn: &mut aio::Connection, hash: &str, key: &str) -> Result<String, ()> {
+pub async fn hget_cached(
+  conn: &mut aio::MultiplexedConnection,
+  hash: &str,
+  key: &str,
+) -> Result<String, ()> {
   let value: Result<String, ()> = cmd("HGET")
     .arg(hash)
     .arg(key)
@@ -122,7 +137,8 @@ pub async fn assemble_paper_asset_with_cache(
           .ok(),
       )
     } else {
-      if asset.len() <= TEN_MIB { // cap cache items at 10 MiB
+      if asset.len() <= TEN_MIB {
+        // cap cache items at 10 MiB
         if let Some(ref mut conn) = conn_opt {
           set_cached_asset(&mut *conn, &key, &asset).await.ok();
         }
@@ -181,14 +197,14 @@ pub fn build_arxiv_id(field_opt: &Option<&str>, id: &str) -> String {
   }
 }
 
-pub async fn lucky_url(conn: &mut aio::Connection) -> Option<String> {
+pub async fn lucky_url(conn: &mut aio::MultiplexedConnection) -> Option<String> {
   // it makes no sense to call this twice due to the size, just put it in a lazy static.
   let all_articles_result: Result<Vec<String>, RedisError> = cmd("HKEYS")
     .arg("paper_order")
     .query_async::<_, Vec<String>>(conn)
     .await;
   let all_article_ids = all_articles_result.unwrap_or_default();
-  let mut rng = rand::thread_rng();
+  let mut rng = rand::rng();
   all_article_ids
     .iter()
     .choose(&mut rng)
@@ -200,7 +216,7 @@ impl LuckyStore {
   pub fn new() -> Self {
     LuckyStore(ArrayQueue::new(2_000_000), ArrayQueue::new(2_000_000))
   }
-  pub async fn get(&self, conn: &mut aio::Connection) -> Option<String> {
+  pub async fn get(&self, conn: &mut aio::MultiplexedConnection) -> Option<String> {
     if self.0.is_empty() {
       if self.1.is_empty() {
         // initial call, fill up from Redis
@@ -209,7 +225,7 @@ impl LuckyStore {
           .query_async::<_, Vec<String>>(conn)
           .await;
         let mut all_article_ids = all_articles_result.unwrap_or_default();
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         all_article_ids.shuffle(&mut rng);
         // seed the thread-safe datastructure
         for id in all_article_ids.into_iter() {
@@ -221,7 +237,7 @@ impl LuckyStore {
         while let Some(id) = self.1.pop() {
           buffer.push(id);
         }
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         buffer.shuffle(&mut rng);
         for id in buffer.into_iter() {
           self.0.push(id).unwrap_or_default();
