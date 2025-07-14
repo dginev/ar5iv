@@ -27,7 +27,7 @@ path = "bin/cache_adjacency_map.rs"
 name = "cache_adjacency_map"
 
 [dev-dependencies]
-criterion = {version = "0.3.5", features=["async_tokio"]}
+criterion = {version = "0.6.0", features=["async_tokio"]}
 
 [[bench]]
 name = "dirty_render"
