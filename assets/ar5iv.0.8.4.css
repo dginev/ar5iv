@@ -144,6 +144,13 @@ img {
 [data-theme="dark"] .ltx_foreignobject_content {
   color: var(--text-color);
 }
+/* Special hand-crafted case: \color{black} is the most common use, so hand-curate to match
+   the main foreground color in dark mode.
+   TODO: This color should be a design token name eventually */
+[data-theme="dark"] [style*="--ltx-fg-color:#000000;"] {
+  --text-color: #c9d1d9;
+  color: var(--text-color);
+}
 
 /* Main content */
 body {
@@ -439,15 +446,20 @@ span.ltx_personname > .ltx_break + .ltx_break {
    it applies to all of the authors. Ideally latexml's schema should evolve to handle this
    via differently organized markup. 
 
-   Tested with 2201.00244   
+   Tested with 2201.00244, 1109.5581
 */
-.ltx_authors:not(:has(> *:not(:last-child) .ltx_role_address)) .ltx_role_address {
+.ltx_authors:not(:has(> *:not(:last-child) .ltx_role_address)) :last-child.ltx_role_address,
+.ltx_authors:not(:has(> *:not(:last-child) .ltx_role_affiliation)) :last-child.ltx_role_affiliation {
     position: absolute;
     display: block;
     margin: 2rem auto;
     text-align: center;
     width: var(--main-width);
     left: calc((100vw - var(--main-width)) / 2);
+}
+.ltx_authors:not(:has(> *:not(:last-child) .ltx_role_address)):has( :last-child.ltx_role_address),
+.ltx_authors:not(:has(> *:not(:last-child) .ltx_role_affiliation)):has( :last-child.ltx_role_affiliation) {
+  margin-bottom: 4rem;
 }
 
 /* in multi-affiliation markup, e.g. produced by authblk.sty,
@@ -532,6 +544,7 @@ div.ltx_keywords:empty:before {
   margin: 0.6rem;
   font-family: var(--text-font-family);
   line-height: 1.5rem;
+  white-space: normal;
   overflow-wrap: break-word;
   /* getting some rather unpleasant horizontal scroll on Chrome on large screens,
    likely due to the way footnotes get laid out? Upgrade ideas welcome.
@@ -1805,6 +1818,7 @@ svg foreignObject > .ltx_foreignobject_container {
    see https://arxiv.org/html/2503.09799v1#S2.T2   */
 .ltx_table:not(:has(> .ltx_flex_table)) {
   overflow-x: auto;
+  overflow-y: hidden;
 }
 .ltx_table .ltx_caption {
   margin-left: auto;
