@@ -7,7 +7,7 @@ default-run = "ar5iv"
 [dependencies]
 lazy_static = "1.4.0"
 regex = "1.5.4"
-zip = "7.0"
+zip = "8.1"
 walkdir = "2"
 redis = "1.0.1"
 rand = "0.9.1"
