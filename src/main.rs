@@ -34,6 +34,56 @@ static GLOBAL: Jemalloc = Jemalloc;
 static TRAILING_PDF_EXT: LazyLock<Regex> = LazyLock::new(|| Regex::new("[.]pdf$").unwrap());
 static TRAILING_ZIP_EXT: LazyLock<Regex> = LazyLock::new(|| Regex::new("[.]zip$").unwrap());
 
+/// The modern arXiv id scheme (since 2007-04): YYMM.NNNN(N), optional version.
+static NEW_STYLE_ID: LazyLock<Regex> =
+  LazyLock::new(|| Regex::new(r"^\d{2}(0[1-9]|1[0-2])\.\d{4,5}(v\d{1,2})?$").unwrap());
+/// The number part of the legacy scheme (1991-07 .. 2007-03): YYMMNNN, optional
+/// version. (We allow all of 2007 rather than encoding the mid-year cutoff;
+/// arxiv.org is the final arbiter for those few months.)
+static OLD_STYLE_NUMBER: LazyLock<Regex> =
+  LazyLock::new(|| Regex::new(r"^(9[1-9]|0[0-7])(0[1-9]|1[0-2])\d{3}(v\d{1,2})?$").unwrap());
+
+/// The legacy arXiv archive names -- a closed set, frozen at the 2007-04
+/// identifier scheme change. See https://arxiv.org/help/arxiv_identifier
+const OLD_STYLE_ARCHIVES: &[&str] = &[
+  "acc-phys", "adap-org", "alg-geom", "ao-sci", "astro-ph", "atom-ph", "bayes-an", "chao-dyn",
+  "chem-ph", "cmp-lg", "comp-gas", "cond-mat", "cs", "dg-ga", "funct-an", "gr-qc", "hep-ex",
+  "hep-lat", "hep-ph", "hep-th", "math", "math-ph", "mtrl-th", "nlin", "nucl-ex", "nucl-th",
+  "patt-sol", "physics", "plasm-ph", "q-alg", "q-bio", "quant-ph", "solv-int", "supr-con",
+];
+
+/// Only redirect to arxiv.org for ids matching one of its known identifier
+/// schemes; everything else gets our 404 page rather than forwarding junk
+/// traffic (crawler typos, spam probes) to arXiv.
+fn is_plausible_arxiv_id(field_opt: Option<&str>, id: &str) -> bool {
+  match field_opt {
+    // modern scheme, e.g. "2105.04404" or "0704.0001v2"
+    None => NEW_STYLE_ID.is_match(id),
+    // legacy scheme, e.g. "math/0211159" or "math.GT/0309136"
+    Some(field) => {
+      let (archive, subject_opt) = match field.split_once('.') {
+        Some((archive, subject)) => (archive, Some(subject)),
+        None => (field, None),
+      };
+      OLD_STYLE_ARCHIVES.contains(&archive)
+        && subject_opt.is_none_or(|subject| {
+          (2..=9).contains(&subject.len())
+            && subject.bytes().all(|b| b.is_ascii_alphabetic() || b == b'-')
+        })
+        && OLD_STYLE_NUMBER.is_match(id)
+    }
+  }
+}
+
+/// Fallback responses for /html/ requests we cannot serve locally:
+/// plausible arXiv ids are forwarded to arxiv.org, the rest get a 404.
+#[derive(Responder)]
+enum HtmlFallback {
+  Redirect(Box<Redirect>),
+  #[response(status = 404)]
+  NotFound(Box<Template>),
+}
+
 /// Cache-Control values: versioned site assets are immutable; paper pages and
 /// their assets only change on (rare) reprocessing, so modest lifetimes are safe.
 const CC_IMMUTABLE: &str = "public, max-age=31536000, immutable";
@@ -90,14 +140,18 @@ async fn favicon() -> Option<CacheControlled<NamedFile>> {
 async fn get_html(
   conn: Option<Connection<Cache>>,
   id: &str,
-) -> Result<CacheControlled<content::RawHtml<String>>, Redirect> {
+) -> Result<CacheControlled<content::RawHtml<String>>, HtmlFallback> {
   if let Some(paper) = assemble_paper_with_cache(conn, None, id).await {
     Ok(CacheControlled(content::RawHtml(paper), CC_PAPER))
-  } else {
-    Err(Redirect::temporary(format!(
+  } else if is_plausible_arxiv_id(None, id) {
+    Err(HtmlFallback::Redirect(Box::new(Redirect::temporary(format!(
       "https://arxiv.org/abs/{}",
       percent_encode_id(id)
-    )))
+    )))))
+  } else {
+    let mut map = default_context();
+    map.insert("id", id);
+    Err(HtmlFallback::NotFound(Box::new(Template::render("404", &map))))
   }
 }
 #[get("/html/<field>/<id>", rank = 2)]
@@ -105,15 +159,20 @@ async fn get_field_html(
   conn: Option<Connection<Cache>>,
   field: &str,
   id: &str,
-) -> Result<CacheControlled<content::RawHtml<String>>, Redirect> {
+) -> Result<CacheControlled<content::RawHtml<String>>, HtmlFallback> {
   if let Some(paper) = assemble_paper_with_cache(conn, Some(field), id).await {
     Ok(CacheControlled(content::RawHtml(paper), CC_PAPER))
-  } else {
-    Err(Redirect::temporary(format!(
+  } else if is_plausible_arxiv_id(Some(field), id) {
+    Err(HtmlFallback::Redirect(Box::new(Redirect::temporary(format!(
       "https://arxiv.org/abs/{}/{}",
       percent_encode_id(field),
       percent_encode_id(id)
-    )))
+    )))))
+  } else {
+    let mut map = default_context();
+    let arxiv_id = format!("{field}/{id}");
+    map.insert("id", &arxiv_id);
+    Err(HtmlFallback::NotFound(Box::new(Template::render("404", &map))))
   }
 }
 
@@ -332,27 +391,66 @@ mod tests {
   }
 
   #[test]
-  fn multibyte_id_is_a_clean_redirect() {
+  fn multibyte_id_is_a_clean_404() {
     // regression: ids where byte 4 splits a UTF-8 char used to panic
-    // ("ab€cd", with the euro sign percent-encoded)
+    // ("ab€cd", with the euro sign percent-encoded); since they cannot
+    // be arXiv ids, they 404 rather than redirect.
     let client = client();
     let response = client.get("/html/ab%E2%82%ACcd").dispatch();
+    assert_eq!(response.status(), Status::NotFound);
+  }
+
+  #[test]
+  fn malformed_ids_are_not_relayed_to_arxiv() {
+    let client = client();
+    for uri in [
+      "/html/blahblah",
+      "/html/9999.99999",         // month 99 cannot exist
+      "/html/2105.04404extra",
+      "/html/notanarchive/0211159",
+      "/html/math/021115",        // six digits
+      "/html/math/0213159",       // month 13 cannot exist
+    ] {
+      let response = client.get(uri).dispatch();
+      assert_eq!(response.status(), Status::NotFound, "expected 404 for {uri}");
+    }
+  }
+
+  #[test]
+  fn plausible_unknown_papers_redirect_to_arxiv_abs() {
+    let client = client();
+    let response = client.get("/html/2512.99999").dispatch();
     assert_eq!(response.status(), Status::TemporaryRedirect);
     assert_eq!(
       response.headers().get_one("Location"),
-      Some("https://arxiv.org/abs/ab%E2%82%ACcd")
+      Some("https://arxiv.org/abs/2512.99999")
+    );
+    let response = client.get("/html/math/0211159v2").dispatch();
+    assert_eq!(response.status(), Status::TemporaryRedirect);
+    assert_eq!(
+      response.headers().get_one("Location"),
+      Some("https://arxiv.org/abs/math/0211159v2")
     );
   }
 
   #[test]
-  fn unknown_paper_redirects_to_arxiv_abs() {
-    let client = client();
-    let response = client.get("/html/9999.99999").dispatch();
-    assert_eq!(response.status(), Status::TemporaryRedirect);
-    assert_eq!(
-      response.headers().get_one("Location"),
-      Some("https://arxiv.org/abs/9999.99999")
-    );
+  fn arxiv_id_scheme_validation() {
+    use super::is_plausible_arxiv_id;
+    // modern scheme
+    assert!(is_plausible_arxiv_id(None, "2105.04404"));
+    assert!(is_plausible_arxiv_id(None, "0704.0001v2"));
+    assert!(is_plausible_arxiv_id(None, "1412.9999"));
+    assert!(!is_plausible_arxiv_id(None, "2105.044"));
+    assert!(!is_plausible_arxiv_id(None, "21050.4404"));
+    assert!(!is_plausible_arxiv_id(None, "math/0211159"));
+    // legacy scheme
+    assert!(is_plausible_arxiv_id(Some("math"), "0211159"));
+    assert!(is_plausible_arxiv_id(Some("math.GT"), "0309136"));
+    assert!(is_plausible_arxiv_id(Some("astro-ph"), "9912345v1"));
+    assert!(!is_plausible_arxiv_id(Some("math"), "2105.04404"));
+    assert!(!is_plausible_arxiv_id(Some("spamarchive"), "0211159"));
+    assert!(!is_plausible_arxiv_id(Some("math.G$"), "0309136"));
+    assert!(!is_plausible_arxiv_id(Some("math"), "0813159")); // year 08 is new-scheme
   }
 
   #[test]
