@@ -13,6 +13,7 @@ use std::path::Path;
 
 pub const TEN_MIB: usize = 10_485_760; // u8 is 1 byte
 pub const TWO_AND_A_HALF_MIB: usize = 2_621_440; //a char is 4 bytes
+pub const SIXTY_FOUR_MIB: u64 = 67_108_864; // hard cap for buffering a single ZIP asset into RAM
 
 lazy_static! {
   static ref ARXIV_ID_VERSION: Regex = Regex::new("v\\d\\d?$").unwrap();

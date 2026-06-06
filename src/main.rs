@@ -23,6 +23,16 @@ use std::path::Path;
 #[macro_use]
 extern crate lazy_static;
 use regex::Regex;
+
+// jemalloc returns freed memory to the OS (with background purging via MALLOC_CONF),
+// avoiding the glibc-malloc arena retention that ratchets RSS up under
+// the large transient allocations of cache-miss paper assembly.
+#[cfg(not(target_env = "msvc"))]
+use tikv_jemallocator::Jemalloc;
+
+#[cfg(not(target_env = "msvc"))]
+#[global_allocator]
+static GLOBAL: Jemalloc = Jemalloc;
 lazy_static! {
   static ref TRAILING_PDF_EXT: Regex = Regex::new("[.]pdf$").unwrap();
   static ref TRAILING_ZIP_EXT: Regex = Regex::new("[.]zip$").unwrap();
@@ -310,14 +320,14 @@ async fn get_field_log(
 }
 
 #[get("/source/<id>")]
-async fn get_source_zip(id: &str) -> Option<(ContentType, Vec<u8>)> {
+async fn get_source_zip(id: &str) -> Option<NamedFile> {
   let id_core: String = (*TRAILING_ZIP_EXT.replace(id, "")).to_owned();
-  fetch_zip(None, &id_core)
+  fetch_zip(None, &id_core).await
 }
 #[get("/source/<field>/<id>", rank = 2)]
-async fn get_field_source_zip(field: &str, id: &str) -> Option<(ContentType, Vec<u8>)> {
+async fn get_field_source_zip(field: &str, id: &str) -> Option<NamedFile> {
   let id_core: String = (*TRAILING_ZIP_EXT.replace(id, "")).to_owned();
-  fetch_zip(Some(field), &id_core)
+  fetch_zip(Some(field), &id_core).await
 }
 
 #[get("/feeling_lucky")]

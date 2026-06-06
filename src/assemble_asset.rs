@@ -1,4 +1,4 @@
-use rocket::http::ContentType;
+use rocket::fs::NamedFile;
 use rocket::tokio::task::spawn_blocking;
 use rocket_db_pools::Connection;
 use std::fs::File;
@@ -6,7 +6,7 @@ use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 use zip::ZipArchive;
 
-use crate::cache::{build_arxiv_id, hget_cached, set_cached, set_cached_asset, Cache, TEN_MIB, TWO_AND_A_HALF_MIB};
+use crate::cache::{build_arxiv_id, hget_cached, set_cached, set_cached_asset, Cache, SIXTY_FOUR_MIB, TEN_MIB, TWO_AND_A_HALF_MIB};
 use crate::constants::LOG_FILENAME;
 use crate::dirty_templates::{dirty_branded_ar5iv_html, log_to_html};
 use crate::dom_templates::branded_ar5iv_html;
@@ -64,8 +64,13 @@ pub async fn assemble_paper(
                 file.read_to_string(&mut log).unwrap();
               }
               other => {
-                // record assets for later management4
-                asset = Some(other.to_string());
+                // record assets for later caching.
+                // skip oversized assets: they can't be cached (see TEN_MIB cap below),
+                // so buffering them here only inflates RSS -- the /assets/ routes
+                // serve them from the ZIP on demand instead.
+                if file.size() <= TEN_MIB as u64 {
+                  asset = Some(other.to_string());
+                }
               }
             }
             if let Some(asset_name) = asset {
@@ -157,7 +162,11 @@ pub async fn assemble_paper_asset(
     .await
     {
       if let Ok(mut asset) = zip.by_name(filename) {
-        let mut file_contents = Vec::new();
+        // refuse to buffer pathologically large assets into RAM
+        if asset.size() > SIXTY_FOUR_MIB {
+          return None;
+        }
+        let mut file_contents = Vec::with_capacity(asset.size() as usize);
         asset.read_to_end(&mut file_contents).ok();
         Some(file_contents)
       } else {
@@ -171,17 +180,11 @@ pub async fn assemble_paper_asset(
   }
 }
 
-pub fn fetch_zip(field_opt: Option<&str>, id: &str) -> Option<(ContentType, Vec<u8>)> {
+pub async fn fetch_zip(field_opt: Option<&str>, id: &str) -> Option<NamedFile> {
   if let Some(paper_path) = build_source_zip_path(field_opt, id) {
-    let zipf = File::open(paper_path).unwrap();
-    let mut reader = BufReader::new(zipf);
-    let mut payload = Vec::new();
-    reader.read_to_end(&mut payload).ok();
-    if payload.is_empty() {
-      None
-    } else {
-      Some((ContentType::ZIP, payload))
-    }
+    // stream the ZIP from disk instead of buffering it into RAM;
+    // NamedFile also derives the application/zip content type from the extension.
+    NamedFile::open(paper_path).await.ok()
   } else {
     None
   }
