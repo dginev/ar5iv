@@ -78,10 +78,13 @@ fn is_plausible_arxiv_id(field_opt: Option<&str>, id: &str) -> bool {
 /// Fallback responses for /html/ requests we cannot serve locally:
 /// plausible arXiv ids are forwarded to arxiv.org, the rest get a 404.
 #[derive(Responder)]
+// Neither variant is boxed: the two are nearly the same size (so no stack is
+// wasted on the smaller one), and the value is built once per fallback response
+// and immediately consumed -- boxing would only add a heap allocation.
 enum HtmlFallback {
-  Redirect(Box<Redirect>),
+  Redirect(Redirect),
   #[response(status = 404)]
-  NotFound(Box<Template>),
+  NotFound(Template),
 }
 
 /// Cache-Control values: versioned site assets are immutable; paper pages and
@@ -144,14 +147,14 @@ async fn get_html(
   if let Some(paper) = assemble_paper_with_cache(conn, None, id).await {
     Ok(CacheControlled(content::RawHtml(paper), CC_PAPER))
   } else if is_plausible_arxiv_id(None, id) {
-    Err(HtmlFallback::Redirect(Box::new(Redirect::temporary(format!(
+    Err(HtmlFallback::Redirect(Redirect::temporary(format!(
       "https://arxiv.org/abs/{}",
       percent_encode_id(id)
-    )))))
+    ))))
   } else {
     let mut map = default_context();
     map.insert("id", id);
-    Err(HtmlFallback::NotFound(Box::new(Template::render("404", &map))))
+    Err(HtmlFallback::NotFound(Template::render("404", &map)))
   }
 }
 #[get("/html/<field>/<id>", rank = 2)]
@@ -163,16 +166,16 @@ async fn get_field_html(
   if let Some(paper) = assemble_paper_with_cache(conn, Some(field), id).await {
     Ok(CacheControlled(content::RawHtml(paper), CC_PAPER))
   } else if is_plausible_arxiv_id(Some(field), id) {
-    Err(HtmlFallback::Redirect(Box::new(Redirect::temporary(format!(
+    Err(HtmlFallback::Redirect(Redirect::temporary(format!(
       "https://arxiv.org/abs/{}/{}",
       percent_encode_id(field),
       percent_encode_id(id)
-    )))))
+    ))))
   } else {
     let mut map = default_context();
     let arxiv_id = format!("{field}/{id}");
     map.insert("id", &arxiv_id);
-    Err(HtmlFallback::NotFound(Box::new(Template::render("404", &map))))
+    Err(HtmlFallback::NotFound(Template::render("404", &map)))
   }
 }
 
