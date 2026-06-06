@@ -1,41 +1,68 @@
-#![feature(proc_macro_hygiene, decl_macro)]
-
 #[macro_use]
 extern crate rocket;
 use rocket::fs::NamedFile;
 use rocket::http::ContentType;
+use rocket::http::Header;
 use rocket::http::Status;
-use rocket::response::{content, status, Redirect};
-use rocket::{Request,State};
+use rocket::response::{self, content, status, Redirect, Responder};
+use rocket::{Request, State};
 use rocket_db_pools::Connection;
 use rocket_db_pools::Database;
 use rocket_dyn_templates::Template;
 
+use ar5iv::assemble_asset::fetch_zip;
 use ar5iv::cache::{
   assemble_log_with_cache, assemble_paper_asset_with_cache, assemble_paper_with_cache, Cache,
-  LuckyStore
+  LuckyStore,
 };
-use ar5iv::assemble_asset::fetch_zip;
-use ar5iv::constants::{AR5IV_FONTS_CSS_URL,AR5IV_CSS_URL,SITE_CSS_URL};
-use std::collections::HashMap;
-use std::path::Path;
-
-#[macro_use]
-extern crate lazy_static;
+use ar5iv::constants::{AR5IV_CSS_URL, AR5IV_FONTS_CSS_URL, SITE_CSS_URL};
 use regex::Regex;
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use std::sync::LazyLock;
 
-// jemalloc returns freed memory to the OS (with background purging via MALLOC_CONF),
-// avoiding the glibc-malloc arena retention that ratchets RSS up under
-// the large transient allocations of cache-miss paper assembly.
+// jemalloc returns freed memory to the OS (with background purging via
+// _RJEM_MALLOC_CONF), avoiding the glibc-malloc arena retention that ratchets
+// RSS up under the large transient allocations of cache-miss paper assembly.
 #[cfg(not(target_env = "msvc"))]
 use tikv_jemallocator::Jemalloc;
 
 #[cfg(not(target_env = "msvc"))]
 #[global_allocator]
 static GLOBAL: Jemalloc = Jemalloc;
-lazy_static! {
-  static ref TRAILING_PDF_EXT: Regex = Regex::new("[.]pdf$").unwrap();
-  static ref TRAILING_ZIP_EXT: Regex = Regex::new("[.]zip$").unwrap();
+
+static TRAILING_PDF_EXT: LazyLock<Regex> = LazyLock::new(|| Regex::new("[.]pdf$").unwrap());
+static TRAILING_ZIP_EXT: LazyLock<Regex> = LazyLock::new(|| Regex::new("[.]zip$").unwrap());
+
+/// Cache-Control values: versioned site assets are immutable; paper pages and
+/// their assets only change on (rare) reprocessing, so modest lifetimes are safe.
+const CC_IMMUTABLE: &str = "public, max-age=31536000, immutable";
+const CC_PAPER: &str = "public, max-age=3600";
+const CC_PAPER_ASSET: &str = "public, max-age=86400";
+
+/// Wraps any responder, adding a Cache-Control header.
+struct CacheControlled<R>(R, &'static str);
+impl<'r, 'o: 'r, R: Responder<'r, 'o>> Responder<'r, 'o> for CacheControlled<R> {
+  fn respond_to(self, req: &'r Request<'_>) -> response::Result<'o> {
+    let mut resp = self.0.respond_to(req)?;
+    resp.set_header(Header::new("Cache-Control", self.1));
+    Ok(resp)
+  }
+}
+
+/// Percent-encode an untrusted id for safe inclusion in a redirect Location;
+/// a raw non-ASCII byte would make the URI invalid and fail the responder.
+fn percent_encode_id(id: &str) -> String {
+  let mut out = String::with_capacity(id.len());
+  for b in id.bytes() {
+    match b {
+      b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' | b'/' => {
+        out.push(b as char)
+      }
+      _ => out.push_str(&format!("%{b:02X}")),
+    }
+  }
+  out
 }
 
 fn default_context() -> HashMap<&'static str, &'static str> {
@@ -52,189 +79,67 @@ async fn about() -> Template {
 }
 
 #[get("/favicon.ico")]
-async fn favicon() -> Option<NamedFile> {
+async fn favicon() -> Option<CacheControlled<NamedFile>> {
   NamedFile::open(Path::new("assets/").join("favicon.ico"))
     .await
     .ok()
+    .map(|f| CacheControlled(f, CC_IMMUTABLE))
 }
 
 #[get("/html/<id>")]
 async fn get_html(
   conn: Option<Connection<Cache>>,
   id: &str,
-) -> Result<content::RawHtml<String>, Redirect> {
-  if let Some(paper) = assemble_paper_with_cache(conn, None, id, false).await {
-    Ok(content::RawHtml(paper))
+) -> Result<CacheControlled<content::RawHtml<String>>, Redirect> {
+  if let Some(paper) = assemble_paper_with_cache(conn, None, id).await {
+    Ok(CacheControlled(content::RawHtml(paper), CC_PAPER))
   } else {
-    Err(Redirect::temporary(format!("https://arxiv.org/abs/{id}")))
+    Err(Redirect::temporary(format!(
+      "https://arxiv.org/abs/{}",
+      percent_encode_id(id)
+    )))
   }
 }
-#[get("/html/<field>/<id>")]
+#[get("/html/<field>/<id>", rank = 2)]
 async fn get_field_html(
   conn: Option<Connection<Cache>>,
   field: &str,
   id: &str,
-) -> Result<content::RawHtml<String>, Redirect> {
-  if let Some(paper) = assemble_paper_with_cache(conn, Some(field), id, false).await {
-    Ok(content::RawHtml(paper))
+) -> Result<CacheControlled<content::RawHtml<String>>, Redirect> {
+  if let Some(paper) = assemble_paper_with_cache(conn, Some(field), id).await {
+    Ok(CacheControlled(content::RawHtml(paper), CC_PAPER))
   } else {
-    Err(Redirect::temporary(format!("https://arxiv.org/abs/{field}/{id}")))
+    Err(Redirect::temporary(format!(
+      "https://arxiv.org/abs/{}/{}",
+      percent_encode_id(field),
+      percent_encode_id(id)
+    )))
   }
 }
 
-#[get("/html/<id>/assets/<filename>")]
+#[get("/html/<id>/assets/<path..>", rank = 3)]
 async fn get_paper_asset(
   conn: Option<Connection<Cache>>,
   id: &str,
-  filename: &str,
-) -> Result<(ContentType, Vec<u8>), Option<NamedFile>> {
-  assemble_paper_asset_with_cache(conn, None, id, filename).await
+  path: PathBuf,
+) -> Result<CacheControlled<(ContentType, Vec<u8>)>, Option<NamedFile>> {
+  let filename = path.to_string_lossy();
+  assemble_paper_asset_with_cache(conn, None, id, &filename)
+    .await
+    .map(|asset| CacheControlled(asset, CC_PAPER_ASSET))
 }
-#[get("/html/<field>/<id>/assets/<filename>", rank = 2)]
+#[get("/html/<field>/<id>/assets/<path..>", rank = 4)]
 async fn get_field_paper_asset(
   conn: Option<Connection<Cache>>,
   field: &str,
   id: &str,
-  filename: &str,
-) -> Result<(ContentType, Vec<u8>), Option<NamedFile>> {
-  assemble_paper_asset_with_cache(conn, Some(field), id, filename).await
+  path: PathBuf,
+) -> Result<CacheControlled<(ContentType, Vec<u8>)>, Option<NamedFile>> {
+  let filename = path.to_string_lossy();
+  assemble_paper_asset_with_cache(conn, Some(field), id, &filename)
+    .await
+    .map(|asset| CacheControlled(asset, CC_PAPER_ASSET))
 }
-#[get("/html/<id>/assets/<subdir>/<filename>")]
-async fn get_paper_subdir_asset(
-  conn: Option<Connection<Cache>>,
-  id: &str,
-  subdir: String,
-  filename: &str,
-) -> Result<(ContentType, Vec<u8>), Option<NamedFile>> {
-  let compound_name = subdir + "/" + filename;
-  assemble_paper_asset_with_cache(conn, None, id, &compound_name).await
-}
-#[get("/html/<id>/assets/<subdir>/<subsubdir>/<filename>")]
-async fn get_paper_subsubdir_asset(
-  conn: Option<Connection<Cache>>,
-  id: &str,
-  subdir: String,
-  subsubdir: &str,
-  filename: &str,
-) -> Result<(ContentType, Vec<u8>), Option<NamedFile>> {
-  let compound_name = subdir + "/" + subsubdir + "/" + filename;
-  assemble_paper_asset_with_cache(conn, None, id, &compound_name).await
-}
-#[get("/html/<id>/assets/<subdir>/<sub2dir>/<sub3dir>/<filename>")]
-async fn get_paper_sub3dir_asset(
-  conn: Option<Connection<Cache>>,
-  id: &str,
-  subdir: String,
-  sub2dir: &str,
-  sub3dir: &str,
-  filename: &str,
-) -> Result<(ContentType, Vec<u8>), Option<NamedFile>> {
-  let compound_name = subdir + "/" + sub2dir + "/" + sub3dir + "/" + filename;
-  assemble_paper_asset_with_cache(conn, None, id, &compound_name).await
-}
-#[get("/html/<id>/assets/<subdir>/<sub2dir>/<sub3dir>/<sub4dir>/<filename>")]
-async fn get_paper_sub4dir_asset(
-  conn: Option<Connection<Cache>>,
-  id: &str,
-  subdir: String,
-  sub2dir: &str,
-  sub3dir: &str,
-  sub4dir: &str,
-  filename: &str,
-) -> Result<(ContentType, Vec<u8>), Option<NamedFile>> {
-  let compound_name = subdir + "/" + sub2dir + "/" + sub3dir + "/" + sub4dir + "/" + filename;
-  assemble_paper_asset_with_cache(conn, None, id, &compound_name).await
-}
-#[get("/html/<id>/assets/<subdir>/<sub2dir>/<sub3dir>/<sub4dir>/<sub5dir>/<filename>")]
-#[allow(clippy::too_many_arguments)]
-async fn get_paper_sub5dir_asset(
-  conn: Option<Connection<Cache>>,
-  id: &str,
-  subdir: String,
-  sub2dir: &str,
-  sub3dir: &str,
-  sub4dir: &str,
-  sub5dir: &str,
-  filename: &str,
-) -> Result<(ContentType, Vec<u8>), Option<NamedFile>> {
-  let compound_name = subdir + "/" + sub2dir + "/" + sub3dir + "/" + sub4dir + "/" + sub5dir + "/" + filename;
-  assemble_paper_asset_with_cache(conn, None, id, &compound_name).await
-}
-
-#[get("/html/<field>/<id>/assets/<subdir>/<filename>", rank = 2)]
-async fn get_field_paper_subdir_asset(
-  conn: Option<Connection<Cache>>,
-  field: &str,
-  id: &str,
-  subdir: String,
-  filename: &str,
-) -> Result<(ContentType, Vec<u8>), Option<NamedFile>> {
-  let compound_name = subdir + "/" + filename;
-  assemble_paper_asset_with_cache(conn, Some(field), id, &compound_name).await
-}
-#[get("/html/<field>/<id>/assets/<subdir>/<subsubdir>/<filename>", rank = 2)]
-async fn get_field_paper_subsubdir_asset(
-  conn: Option<Connection<Cache>>,
-  field: &str,
-  id: &str,
-  subdir: String,
-  subsubdir: &str,
-  filename: &str,
-) -> Result<(ContentType, Vec<u8>), Option<NamedFile>> {
-  let compound_name = subdir + "/" + subsubdir + "/" + filename;
-  assemble_paper_asset_with_cache(conn, Some(field), id, &compound_name).await
-}
-
-#[get("/html/<field>/<id>/assets/<subdir>/<sub2dir>/<sub3dir>/<filename>", rank = 2)]
-async fn get_field_paper_sub3dir_asset(
-  conn: Option<Connection<Cache>>,
-  field: &str,
-  id: &str,
-  subdir: String,
-  sub2dir: &str,
-  sub3dir: &str,
-  filename: &str,
-) -> Result<(ContentType, Vec<u8>), Option<NamedFile>> {
-  let compound_name = subdir + "/" + sub2dir + "/" + sub3dir + "/" + filename;
-  assemble_paper_asset_with_cache(conn, Some(field), id, &compound_name).await
-}
-
-#[get("/html/<field>/<id>/assets/<subdir>/<sub2dir>/<sub3dir>/<sub4dir>/<filename>", rank = 2)]
-#[allow(clippy::too_many_arguments)]
-async fn get_field_paper_sub4dir_asset(
-  conn: Option<Connection<Cache>>,
-  field: &str,
-  id: &str,
-  subdir: String,
-  sub2dir: &str,
-  sub3dir: &str,
-  sub4dir: &str,
-  filename: &str,
-) -> Result<(ContentType, Vec<u8>), Option<NamedFile>> {
-  let compound_name = subdir + "/" + sub2dir + "/" + sub3dir + "/" + sub4dir + "/" + filename;
-  assemble_paper_asset_with_cache(conn, Some(field), id, &compound_name).await
-}
-
-#[get(
-  "/html/<field>/<id>/assets/<subdir>/<sub2dir>/<sub3dir>/<sub4dir>/<sub5dir>/<filename>",
-  rank = 2
-)]
-#[allow(clippy::too_many_arguments)]
-async fn get_field_paper_sub5dir_asset(
-  conn: Option<Connection<Cache>>,
-  field: &str,
-  id: &str,
-  subdir: String,
-  sub2dir: &str,
-  sub3dir: &str,
-  sub4dir: &str,
-  sub5dir: &str,
-  filename: &str,
-) -> Result<(ContentType, Vec<u8>), Option<NamedFile>> {
-  let compound_name = subdir + "/" + sub2dir + "/" + sub3dir + "/" + sub4dir + "/" + sub5dir + "/" + filename;
-  assemble_paper_asset_with_cache(conn, Some(field), id, &compound_name).await
-}
-
 
 #[get("/abs/<field>/<id>")]
 async fn abs_field(field: &str, id: &str) -> Redirect {
@@ -272,14 +177,19 @@ async fn pdf(id: String) -> Redirect {
 }
 
 #[get("/assets/<name>")]
-async fn assets(name: &str) -> Option<NamedFile> {
-  NamedFile::open(Path::new("assets/").join(name)).await.ok()
+async fn assets(name: &str) -> Option<CacheControlled<NamedFile>> {
+  NamedFile::open(Path::new("assets/").join(name))
+    .await
+    .ok()
+    .map(|f| CacheControlled(f, CC_IMMUTABLE))
 }
 #[get("/assets/fonts/<name>")]
-async fn font_assets(name: &str) -> Option<NamedFile> {
-  NamedFile::open(Path::new("assets/fonts/").join(name)).await.ok()
+async fn font_assets(name: &str) -> Option<CacheControlled<NamedFile>> {
+  NamedFile::open(Path::new("assets/fonts/").join(name))
+    .await
+    .ok()
+    .map(|f| CacheControlled(f, CC_IMMUTABLE))
 }
-
 
 #[catch(404)]
 fn general_not_found(req: &Request) -> Template {
@@ -331,24 +241,31 @@ async fn get_field_source_zip(field: &str, id: &str) -> Option<NamedFile> {
 }
 
 #[get("/feeling_lucky")]
-async fn feeling_lucky(lucky_store: &State<LuckyStore>, conn_opt: Option<Connection<Cache>>) -> Redirect {
+async fn feeling_lucky(
+  lucky_store: &State<LuckyStore>,
+  conn_opt: Option<Connection<Cache>>,
+) -> Redirect {
   if let Some(mut conn) = conn_opt {
     if let Some(uri) = lucky_store.inner().get(&mut conn).await {
-      Redirect::to(String::from("/html/")+&uri)
-    } else { // fallback to some standard paper
+      Redirect::to(String::from("/html/") + &uri)
+    } else {
+      // fallback to some standard paper
       Redirect::to("/html/1910.06709")
-    } }
-  else {
+    }
+  } else {
     Redirect::to("/html/1910.06709")
   }
 }
 
 #[get("/robots.txt")]
 fn robots_txt() -> (ContentType, &'static str) {
-  (ContentType::Plain,
-r###"User-agent: *
+  (
+    ContentType::Plain,
+    r###"User-agent: *
 Disallow: /log/
-"###) }
+"###,
+  )
+}
 
 #[catch(default)]
 fn default_catcher(status: Status, req: &Request<'_>) -> status::Custom<String> {
@@ -377,17 +294,7 @@ fn rocket() -> _ {
         get_source_zip,
         get_field_source_zip,
         get_paper_asset,
-        get_paper_subdir_asset,
-        get_paper_subsubdir_asset,
-        get_paper_sub3dir_asset,
-        get_paper_sub4dir_asset,
-        get_paper_sub5dir_asset,
         get_field_paper_asset,
-        get_field_paper_subdir_asset,
-        get_field_paper_subsubdir_asset,
-        get_field_paper_sub3dir_asset,
-        get_field_paper_sub4dir_asset,
-        get_field_paper_sub5dir_asset,
         about,
         assets,
         font_assets,
@@ -398,4 +305,85 @@ fn rocket() -> _ {
     )
     .manage(LuckyStore::new())
     .register("/", catchers![general_not_found, default_catcher])
+}
+
+#[cfg(test)]
+mod tests {
+  use rocket::http::Status;
+  use rocket::local::blocking::Client;
+
+  fn client() -> Client {
+    Client::tracked(super::rocket()).expect("valid rocket instance")
+  }
+
+  #[test]
+  fn landing_page_renders() {
+    let client = client();
+    let response = client.get("/").dispatch();
+    assert_eq!(response.status(), Status::Ok);
+  }
+
+  #[test]
+  fn short_source_id_is_a_clean_404() {
+    // regression: `/source/abc` used to panic on `&id[0..4]`
+    let client = client();
+    let response = client.get("/source/abc").dispatch();
+    assert_eq!(response.status(), Status::NotFound);
+  }
+
+  #[test]
+  fn multibyte_id_is_a_clean_redirect() {
+    // regression: ids where byte 4 splits a UTF-8 char used to panic
+    // ("ab€cd", with the euro sign percent-encoded)
+    let client = client();
+    let response = client.get("/html/ab%E2%82%ACcd").dispatch();
+    assert_eq!(response.status(), Status::TemporaryRedirect);
+    assert_eq!(
+      response.headers().get_one("Location"),
+      Some("https://arxiv.org/abs/ab%E2%82%ACcd")
+    );
+  }
+
+  #[test]
+  fn unknown_paper_redirects_to_arxiv_abs() {
+    let client = client();
+    let response = client.get("/html/9999.99999").dispatch();
+    assert_eq!(response.status(), Status::TemporaryRedirect);
+    assert_eq!(
+      response.headers().get_one("Location"),
+      Some("https://arxiv.org/abs/9999.99999")
+    );
+  }
+
+  #[test]
+  fn unknown_asset_serves_missing_image_fallback() {
+    let client = client();
+    let response = client
+      .get("/html/9999.99999/assets/some/nested/figure.png")
+      .dispatch();
+    assert_eq!(response.status(), Status::Ok);
+    assert_eq!(
+      response.headers().get_one("Content-Type"),
+      Some("image/png")
+    );
+  }
+
+  #[test]
+  fn site_assets_are_served_immutable() {
+    let client = client();
+    let response = client.get("/assets/ar5iv.0.8.4.css").dispatch();
+    assert_eq!(response.status(), Status::Ok);
+    assert_eq!(
+      response.headers().get_one("Cache-Control"),
+      Some("public, max-age=31536000, immutable")
+    );
+  }
+
+  #[test]
+  fn robots_txt_is_served() {
+    let client = client();
+    let response = client.get("/robots.txt").dispatch();
+    assert_eq!(response.status(), Status::Ok);
+    assert!(response.into_string().unwrap().contains("Disallow: /log/"));
+  }
 }

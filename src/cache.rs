@@ -1,22 +1,32 @@
 use crate::assemble_asset::{assemble_log, assemble_paper, assemble_paper_asset};
-use crate::constants::LOG_FILENAME;
-use crossbeam::queue::ArrayQueue;
-use rand::seq::{IteratorRandom, SliceRandom};
+use rand::seq::SliceRandom;
 use regex::Regex;
 use rocket::fs::NamedFile;
 use rocket::http::ContentType;
+use rocket::tokio::sync::Mutex;
 use rocket_db_pools::deadpool_redis::redis::aio;
 use rocket_db_pools::deadpool_redis::redis::{cmd, RedisError};
 use rocket_db_pools::Connection;
 use rocket_db_pools::{deadpool_redis, Database};
 use std::path::Path;
+use std::sync::LazyLock;
 
-pub const TEN_MIB: usize = 10_485_760; // u8 is 1 byte
-pub const TWO_AND_A_HALF_MIB: usize = 2_621_440; //a char is 4 bytes
+pub const TEN_MIB: usize = 10_485_760; // bytes; the per-item cache cap
 pub const SIXTY_FOUR_MIB: u64 = 67_108_864; // hard cap for buffering a single ZIP asset into RAM
 
-lazy_static! {
-  static ref ARXIV_ID_VERSION: Regex = Regex::new("v\\d\\d?$").unwrap();
+static ARXIV_ID_VERSION: LazyLock<Regex> = LazyLock::new(|| Regex::new("v\\d\\d?$").unwrap());
+
+/// Namespaced cache keys: papers, assets and conversion logs live in disjoint
+/// keyspaces, so that e.g. an asset literally named like the conversion log
+/// can never poison the log cache (or vice versa).
+pub fn paper_key(id_arxiv: &str) -> String {
+  format!("p:{id_arxiv}")
+}
+pub fn asset_key(id_arxiv: &str, filename: &str) -> String {
+  format!("a:{id_arxiv}/{filename}")
+}
+pub fn log_key(id_arxiv: &str) -> String {
+  format!("l:{id_arxiv}")
 }
 
 #[derive(Database)]
@@ -96,12 +106,11 @@ pub async fn assemble_paper_with_cache(
   mut conn_opt: Option<Connection<Cache>>,
   field_opt: Option<&str>,
   id_raw: &str,
-  use_dom: bool,
 ) -> Option<String> {
   let id = ARXIV_ID_VERSION.replace(id_raw, "");
   let cached = match conn_opt {
     Some(ref mut conn) => {
-      let key = build_arxiv_id(&field_opt, &id);
+      let key = paper_key(&build_arxiv_id(&field_opt, &id));
       get_cached(&mut *conn, &key).await.unwrap_or_default()
     }
     None => String::default(),
@@ -109,7 +118,7 @@ pub async fn assemble_paper_with_cache(
   if !cached.is_empty() {
     Some(cached)
   } else {
-    assemble_paper(conn_opt, field_opt, &id, use_dom).await
+    assemble_paper(conn_opt, field_opt, &id).await
   }
 }
 
@@ -120,10 +129,7 @@ pub async fn assemble_paper_asset_with_cache(
   filename: &str,
 ) -> Result<(ContentType, Vec<u8>), Option<NamedFile>> {
   let id = ARXIV_ID_VERSION.replace(id_raw, "");
-  let key = match field_opt {
-    Some(ref field) => field.to_string() + &id + "/" + filename,
-    None => id.to_string() + "/" + filename,
-  };
+  let key = asset_key(&build_arxiv_id(&field_opt, &id), filename);
   let cached = match conn_opt {
     Some(ref mut conn) => get_cached_asset(&mut *conn, &key).await.unwrap_or_default(),
     None => Vec::new(),
@@ -169,7 +175,7 @@ pub async fn assemble_log_with_cache(
   id_raw: &str,
 ) -> Option<String> {
   let id = ARXIV_ID_VERSION.replace(id_raw, "");
-  let key = build_arxiv_id(&field_opt, &id) + "/" + LOG_FILENAME;
+  let key = log_key(&build_arxiv_id(&field_opt, &id));
   let cached = match conn_opt {
     Some(ref mut conn) => get_cached(&mut *conn, &key).await.unwrap_or_default(),
     None => String::new(),
@@ -177,8 +183,8 @@ pub async fn assemble_log_with_cache(
   if !cached.is_empty() {
     Some(cached)
   } else if let Some(paper) = assemble_log(field_opt, &id).await {
-    // (cap cache items at 10 MiB, where a char is 4 bytes)
-    if !paper.is_empty() && paper.len() <= TWO_AND_A_HALF_MIB {
+    // cap cache items at 10 MiB
+    if !paper.is_empty() && paper.len() <= TEN_MIB {
       if let Some(mut conn) = conn_opt {
         set_cached(&mut conn, &key, paper.as_str()).await.ok();
       }
@@ -198,59 +204,26 @@ pub fn build_arxiv_id(field_opt: &Option<&str>, id: &str) -> String {
   }
 }
 
-pub async fn lucky_url(conn: &mut aio::MultiplexedConnection) -> Option<String> {
-  // it makes no sense to call this twice due to the size, just put it in a lazy static.
-  let all_articles_result: Result<Vec<String>, RedisError> = cmd("HKEYS")
-    .arg("paper_order")
-    .query_async::<_, Vec<String>>(conn)
-    .await;
-  let all_article_ids = all_articles_result.unwrap_or_default();
-  let mut rng = rand::rng();
-  all_article_ids
-    .iter()
-    .choose(&mut rng)
-    .map(|id| String::from("/html/") + id)
-}
-
-pub struct LuckyStore(ArrayQueue<String>, ArrayQueue<String>);
+/// A shuffle-bag over all known article ids, for the /feeling_lucky route.
+/// Seeded lazily from Redis, reseeded (and reshuffled) when drained.
+pub struct LuckyStore(Mutex<Vec<String>>);
 impl LuckyStore {
   pub fn new() -> Self {
-    LuckyStore(ArrayQueue::new(2_000_000), ArrayQueue::new(2_000_000))
+    LuckyStore(Mutex::new(Vec::new()))
   }
   pub async fn get(&self, conn: &mut aio::MultiplexedConnection) -> Option<String> {
-    if self.0.is_empty() {
-      if self.1.is_empty() {
-        // initial call, fill up from Redis
-        let all_articles_result: Result<Vec<String>, RedisError> = cmd("HKEYS")
-          .arg("paper_order")
-          .query_async::<_, Vec<String>>(conn)
-          .await;
-        let mut all_article_ids = all_articles_result.unwrap_or_default();
-        let mut rng = rand::rng();
-        all_article_ids.shuffle(&mut rng);
-        // seed the thread-safe datastructure
-        for id in all_article_ids.into_iter() {
-          self.0.push(id).unwrap_or_default();
-        }
-      } else {
-        // rotate and reshuffle, the verbose way
-        let mut buffer = Vec::new();
-        while let Some(id) = self.1.pop() {
-          buffer.push(id);
-        }
-        let mut rng = rand::rng();
-        buffer.shuffle(&mut rng);
-        for id in buffer.into_iter() {
-          self.0.push(id).unwrap_or_default();
-        }
-      }
+    let mut bag = self.0.lock().await;
+    if bag.is_empty() {
+      // (re)seed from Redis -- once per full rotation of the article set
+      let all_articles_result: Result<Vec<String>, RedisError> = cmd("HKEYS")
+        .arg("paper_order")
+        .query_async::<_, Vec<String>>(conn)
+        .await;
+      *bag = all_articles_result.unwrap_or_default();
+      let mut rng = rand::rng();
+      bag.shuffle(&mut rng);
     }
-    if let Some(next) = self.0.pop() {
-      self.1.push(next.clone()).unwrap();
-      Some(next)
-    } else {
-      None
-    }
+    bag.pop()
   }
 }
 impl Default for LuckyStore {

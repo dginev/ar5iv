@@ -1,14 +1,20 @@
-# sample values, don't deploy this to production systems
-[global]
+# Shared defaults; the [release] profile (selected automatically by a
+# `cargo build --release` binary) layers production values on top.
+[default]
 template_dir = "templates/"
-workers = 32
-keep_alive = 15
+workers = 6
+keep_alive = 12
 
 limits = { forms = 32768 }
 
 [default.databases.memdb]
 url = "redis://127.0.0.1"
 min_connections = 8
-max_connections = 1024
+max_connections = 128
+pool_size = 12
 connect_timeout = 3
-idle_timeout = 120
+idle_timeout = 60
+
+# Production (the release-compiled binary picks this profile by default).
+[release]
+port = 11238

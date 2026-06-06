@@ -2,25 +2,29 @@ use crate::assemble_asset::LatexmlStatus;
 use crate::constants::{AR5IV_CSS_URL, AR5IV_FONTS_CSS_URL, DOC_NOT_FOUND_TEMPLATE, SITE_CSS_URL};
 use regex::{Captures, Regex};
 use std::borrow::Cow;
+use std::sync::LazyLock;
 use unicode_segmentation::UnicodeSegmentation;
 
-lazy_static! {
-  static ref END_ARTICLE: Regex = Regex::new("</article>").unwrap();
-  static ref END_HEAD: Regex = Regex::new("</head>").unwrap();
-  static ref END_BODY: Regex = Regex::new("</body>").unwrap();
-  static ref START_PAGE_CONTENT: Regex = Regex::new("<div class=\"ltx_page_content\">").unwrap();
-  static ref START_FOOTER: Regex = Regex::new("<footer class=\"ltx_page_footer\">").unwrap();
-  static ref TITLE_ELEMENT: Regex = Regex::new("<title>((?s)[^<]+?)</title>").unwrap();
-  static ref SINFUL_P_CONTENT : Regex = Regex::new("\"ltx_p\">((?s).+?)</p>").unwrap();
-  static ref SINFUL_MATH : Regex = Regex::new("<math(?s:.+?)</math>").unwrap();
-  static ref SINFUL_TAGS : Regex = Regex::new("<[^>]+?>").unwrap();
-  static ref ABSTRACT_ELEMENT : Regex = Regex::new("\"ltx_abstract\">((?s).+?)</div>").unwrap();
-  static ref SRC_ATTR: Regex = Regex::new(" src=\"([^\"]+)").unwrap();
-  static ref DATA_SVG_ATTR: Regex = Regex::new(" data=\"([^\"]+)[.]svg").unwrap();
-  static ref HEX_JPG: Regex = Regex::new(r"^ffd8ffe0").unwrap();
-  static ref HEX_PNG: Regex = Regex::new(r"^89504e47").unwrap();
-  static ref HEX_GIF: Regex = Regex::new(r"^47494638").unwrap();
-  static ref EXTERNAL_HREF: Regex = Regex::new(" href=\"http").unwrap();
+static END_HEAD: LazyLock<Regex> = LazyLock::new(|| Regex::new("</head>").unwrap());
+static END_BODY: LazyLock<Regex> = LazyLock::new(|| Regex::new("</body>").unwrap());
+static START_FOOTER: LazyLock<Regex> =
+  LazyLock::new(|| Regex::new("<footer class=\"ltx_page_footer\">").unwrap());
+static TITLE_ELEMENT: LazyLock<Regex> =
+  LazyLock::new(|| Regex::new("<title>((?s)[^<]+?)</title>").unwrap());
+static SINFUL_P_CONTENT: LazyLock<Regex> =
+  LazyLock::new(|| Regex::new("\"ltx_p\">((?s).+?)</p>").unwrap());
+static SINFUL_MATH: LazyLock<Regex> = LazyLock::new(|| Regex::new("<math(?s:.+?)</math>").unwrap());
+static SINFUL_TAGS: LazyLock<Regex> = LazyLock::new(|| Regex::new("<[^>]+?>").unwrap());
+static ABSTRACT_ELEMENT: LazyLock<Regex> =
+  LazyLock::new(|| Regex::new("\"ltx_abstract\">((?s).+?)</div>").unwrap());
+static SRC_ATTR: LazyLock<Regex> = LazyLock::new(|| Regex::new(" src=\"([^\"]+)").unwrap());
+static DATA_SVG_ATTR: LazyLock<Regex> =
+  LazyLock::new(|| Regex::new(" data=\"([^\"]+)[.]svg").unwrap());
+static EXTERNAL_HREF: LazyLock<Regex> = LazyLock::new(|| Regex::new(" href=\"http").unwrap());
+
+/// Escape a fragment for use inside a double-quoted HTML attribute value.
+fn attr_escape(value: &str) -> String {
+  value.replace('"', "&quot;")
 }
 
 pub fn dirty_branded_ar5iv_html(
@@ -60,22 +64,24 @@ pub fn dirty_branded_ar5iv_html(
           } else {
             no_tags
           };
-          String::from("<meta property=\"og:description\" content=\"") +&text_description+"\">"
+          String::from("<meta property=\"og:description\" content=\"") +&attr_escape(&text_description)+"\">"
         } else {
           String::default()
         }
       } else {
         String::default()
       };
+      // titles end up in double-quoted attribute values below -- escape them.
+      let title_attr = attr_escape(&caps[1]);
       // 1. also add the arxiv id to the title element
       // 2. this is also the best place to insert vendor-specific meta tags
       String::from("<title>[")+id_arxiv+"] "+&caps[1]+"</title>"+&description+r###"
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content=""###+&caps[1]+r###"">
+<meta name="twitter:title" content=""###+&title_attr+r###"">
 <meta name="twitter:image:src" content="https://ar5iv.labs.arxiv.org/assets/ar5iv_card.png">
 <meta name="twitter:image:alt" content="ar5iv logo">
-<meta property="og:title" content=""###+&caps[1]+r###"">
+<meta property="og:title" content=""###+&title_attr+r###"">
 <meta property="og:site_name" content="ar5iv">
 <meta property="og:image" content="https://ar5iv.labs.arxiv.org/assets/ar5iv_card.png">
 <meta property="og:type" content="article">
@@ -363,4 +369,36 @@ pub fn log_to_html(conversion_report: &str, id_arxiv: &str) -> String {
 </div></div>
 </body>
 </html>"###
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn empty_content_renders_not_found_shell() {
+    let html = dirty_branded_ar5iv_html(
+      String::new(),
+      "1234.56789",
+      LatexmlStatus::Fatal,
+      None,
+      None,
+    );
+    assert!(html.contains("ar5iv-footer"));
+    assert!(html.contains("/log/1234.56789"));
+  }
+
+  #[test]
+  fn quotes_in_titles_stay_inside_attributes() {
+    let input = r#"<html><head><title>An "quoted" title</title></head>
+<body><footer class="ltx_page_footer"></footer></body></html>"#;
+    let html = dirty_branded_ar5iv_html(
+      input.to_string(),
+      "1234.56789",
+      LatexmlStatus::Ok,
+      None,
+      None,
+    );
+    assert!(html.contains(r#"<meta property="og:title" content="An &quot;quoted&quot; title">"#));
+  }
 }

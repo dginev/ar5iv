@@ -1,0 +1,42 @@
+[Unit]
+Description=ar5iv Rocket web service
+Documentation=https://github.com/dginev/ar5iv
+After=network-online.target redis-server.service
+Wants=redis-server.service
+RequiresMountsFor=/mnt/disks/ar5iv_data
+
+[Service]
+Type=simple
+User=deyan_arxiv_org
+Group=deyan_arxiv_org
+WorkingDirectory=/home/deyan_arxiv_org/ar5iv
+ExecStart=/home/deyan_arxiv_org/ar5iv/target/release/ar5iv
+
+Environment=AR5IV_PAPERS_ROOT_DIR=/mnt/disks/ar5iv_data/arxmliv
+# glibc malloc: limit per-thread arena retention (no-op once the jemalloc build is deployed)
+Environment=MALLOC_ARENA_MAX=2
+# jemalloc: purge freed memory back to the OS promptly.
+# tikv-jemalloc-sys builds jemalloc with the _rjem_ prefix, so the config
+# env var is _RJEM_MALLOC_CONF; plain MALLOC_CONF kept for any unprefixed build.
+Environment=MALLOC_CONF=background_thread:true,dirty_decay_ms:10000,muzzy_decay_ms:10000
+Environment=_RJEM_MALLOC_CONF=background_thread:true,dirty_decay_ms:10000,muzzy_decay_ms:10000
+
+# Fault tolerance: restart on any exit, including OOM kills
+Restart=always
+RestartSec=2
+TimeoutStopSec=10
+
+# Memory containment: cap ar5iv so runaway RSS kills only this unit
+# (and systemd restarts it) instead of stalling the whole VM.
+# MemoryLimit= is the cgroup-v1 spelling for this Ubuntu 20.04 hybrid setup;
+# MemoryHigh=/MemoryMax= take over if the host moves to unified cgroup v2.
+MemoryLimit=9G
+MemoryMax=9G
+MemoryHigh=8G
+# If the global OOM killer does run, prefer ar5iv over redis/nginx
+OOMScoreAdjust=200
+
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
