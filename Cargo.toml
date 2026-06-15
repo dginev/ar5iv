@@ -16,7 +16,7 @@ rocket_dyn_templates = {version="0.2.0", features = ["tera"]}
 rocket_db_pools = { version = "0.2.0", features = ["deadpool_redis"]}
 
 [target.'cfg(not(target_env = "msvc"))'.dependencies]
-tikv-jemallocator = { version = "0.6", features = ["background_threads_runtime_support"] }
+tikv-jemallocator = { version = "0.7", features = ["background_threads_runtime_support"] }
 
 [[bin]]
 path = "src/main.rs"
