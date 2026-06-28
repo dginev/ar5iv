@@ -37,6 +37,23 @@ pub fn document_css_urls(id_arxiv: &str) -> (&'static str, &'static str) {
   }
 }
 
+/// Months from this YYMM onward are produced by latexml-oxide via the cortex
+/// `oxidized_tex_to_html` service, so their result bundle on disk is named
+/// `oxidized_tex_to_html.zip` (underscored) rather than the legacy
+/// `tex_to_html.zip`. Open-ended ("2606. and on"), hence a plain YYMM
+/// comparison rather than the finite `GLOWUP_ID_PREFIXES` list.
+pub static OXIDIZED_BUNDLE_MIN_YYMM: &str = "2606";
+
+/// Whether a paper id's month serves the underscored `oxidized_tex_to_html.zip`
+/// bundle (modern ids with YYMM >= `OXIDIZED_BUNDLE_MIN_YYMM`); legacy/older ids
+/// keep `tex_to_html.zip`.
+pub fn uses_oxidized_bundle(id_arxiv: &str) -> bool {
+  id_arxiv
+    .get(0..4)
+    .map(|yymm| yymm >= OXIDIZED_BUNDLE_MIN_YYMM)
+    .unwrap_or(false)
+}
+
 pub static DOC_NOT_FOUND_TEMPLATE: &str = r###"<!DOCTYPE html>
 <html lang="en">
 <head>
