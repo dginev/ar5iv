@@ -1,5 +1,5 @@
 /* ar5iv-css "glowup" theme -- bundled for ar5iv.
-   Source : github.com/dginev/ar5iv-css  (branch: glowup, v0.9.0, commit 94266d3)
+   Source : github.com/dginev/ar5iv-css  (branch: glowup, v0.9.0, commit 371e98b)
    Bundle : lightningcss --bundle. Generated artifact; regenerate from glowup. */
 
 @layer reset;
@@ -1142,15 +1142,17 @@
 
   @media only screen and (width <= 52rem) {
     .ltx_biblist, .ltx_bibitem {
-      grid-template-columns: minmax(0, 1fr);
+      display: block;
     }
 
-    .ltx_bibitem .ltx_tag, .ltx_bibitem .ltx_bibblock {
-      grid-area: auto;
+    .ltx_bibitem > .ltx_tag {
+      line-height: var(--line-height-prose);
+      margin-inline-end: .5em;
+      display: inline;
     }
 
-    .ltx_bibitem .ltx_tag {
-      padding-bottom: .33em;
+    .ltx_bibitem > .ltx_bibblock {
+      display: inline;
     }
   }
 

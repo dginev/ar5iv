@@ -1170,13 +1170,6 @@ span.ltx_font_bold > .ltx_break:last-child {
   word-break: normal;
   overflow-wrap: break-word;
 }
-@media only screen and (max-width: 52rem) {
-  .ltx_bibitem .ltx_tag {
-    display: block;
-    padding-bottom: 0.33em;
-    width: 36%;
-  }
-}
 @media only screen and (min-width: 52.01rem) {
   .ltx_bibitem .ltx_tag {
     width: 14%;
@@ -1189,6 +1182,31 @@ span.ltx_font_bold > .ltx_break:last-child {
   max-width: 40rem;
   line-height: 1.5rem;
   vertical-align: text-top;
+}
+/* On narrow screens the table-cell tag column gets cramped and the [n] tag
+   floated above its content with a gap (the table fixup put the block tag and
+   the bibblocks into separate anonymous rows). Lay the entry out as a normal
+   block and let the tag plus every bibblock flow inline, so the [n] tag leads
+   the first content line and the blocks fill the width and wrap naturally
+   (rather than one block per line). Placed after the base rules above so the
+   inline overrides win on source order (equal specificity). */
+@media only screen and (max-width: 52rem) {
+  .ltx_bibitem {
+    display: block;
+  }
+  .ltx_bibitem > .ltx_tag {
+    display: inline;
+    position: static;
+    left: auto;
+    top: auto;
+    width: auto;
+    padding: 0;
+    margin-inline-end: 0.5em;
+  }
+  .ltx_bibitem > .ltx_bibblock {
+    display: inline;
+    padding-left: 0;
+  }
 }
 /*.bibitem-tag + div { display:inline; }*/
 .ltx_bib_title {
