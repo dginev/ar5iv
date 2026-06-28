@@ -1,4 +1,5 @@
 use ar5iv::paper_order::{AR5IV_PAPERS_ROOT_DIR, FIELD_BOUNDARY};
+use std::collections::HashSet;
 use walkdir::WalkDir;
 
 fn main() -> redis::RedisResult<()> {
@@ -6,6 +7,15 @@ fn main() -> redis::RedisResult<()> {
   let mut conn = client.get_connection()?;
   // This isn't really needed as deletions are disruptive on production machines
   // redis::cmd("DEL").arg("paper_order").query(&mut conn)?;
+
+  // Ids already mapped in `paper_order`. The tree is walked in sorted (chrono)
+  // order and new months are appended at the end, so the cached ids are a
+  // prefix: fast-forward through them WITHOUT writing and only (re)write from the
+  // first not-yet-cached paper onward (plus the boundary + wrap-around). An empty
+  // set (cold cache) writes everything, as before. NOTE: HKEYS is O(N) and
+  // briefly blocks Redis — fine inside the monthly maintenance window.
+  let cached: HashSet<String> = redis::cmd("HKEYS").arg("paper_order").query(&mut conn)?;
+  let mut writing = cached.is_empty();
 
   let mut prev_prev = String::new();
   let mut prev = String::new();
@@ -28,7 +38,15 @@ fn main() -> redis::RedisResult<()> {
             first = prev.to_string();
             second = id.to_string();
           } else if !prev_prev.is_empty() {
-            buffer.push((prev.to_string(), format!("{prev_prev};{id}")));
+            // The first not-yet-cached paper marks the boundary: start writing
+            // here. `prev` (the last cached paper) is rewritten too as the first
+            // push below — its `next` now points to this freshly-added id.
+            if !writing && !cached.contains(id.as_ref()) {
+              writing = true;
+            }
+            if writing {
+              buffer.push((prev.to_string(), format!("{prev_prev};{id}")));
+            }
           }
           prev_prev = prev;
           prev = id.to_string();
