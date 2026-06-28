@@ -1,5 +1,5 @@
 pub static LOG_FILENAME: &str = "cortex.log";
-pub static AR5IV_CSS_URL: &str = "/assets/ar5iv.0.8.4.css";
+pub static AR5IV_CSS_URL: &str = "/assets/ar5iv.0.8.5.css";
 pub static AR5IV_FONTS_CSS_URL: &str = "/assets/ar5iv-fonts.0.8.4.css";
 pub static SITE_CSS_URL: &str = "/assets/ar5iv-site.0.2.2.css";
 

@@ -428,7 +428,7 @@ mod tests {
   #[test]
   fn default_month_article_links_default_stylesheets() {
     let html = branded("2605.04404");
-    assert!(html.contains(r#"href="/assets/ar5iv.0.8.4.css""#));
+    assert!(html.contains(r#"href="/assets/ar5iv.0.8.5.css""#));
     assert!(html.contains(r#"href="/assets/ar5iv-fonts.0.8.4.css""#));
     assert!(!html.contains("0.9.0"));
   }
@@ -440,7 +440,7 @@ mod tests {
     assert!(!glowup.contains("ar5iv.0.8.4.css"));
 
     let default = log_to_html("Status:conversion:0", "2605.04404");
-    assert!(default.contains("ar5iv.0.8.4.css"));
+    assert!(default.contains("ar5iv.0.8.5.css"));
     assert!(!default.contains("0.9.0"));
   }
 }

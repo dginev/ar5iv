@@ -472,7 +472,7 @@ mod tests {
   #[test]
   fn site_assets_are_served_immutable() {
     let client = client();
-    let response = client.get("/assets/ar5iv.0.8.4.css").dispatch();
+    let response = client.get("/assets/ar5iv.0.8.5.css").dispatch();
     assert_eq!(response.status(), Status::Ok);
     assert_eq!(
       response.headers().get_one("Cache-Control"),
