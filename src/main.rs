@@ -481,6 +481,29 @@ mod tests {
   }
 
   #[test]
+  fn glowup_assets_are_served() {
+    // the glowup theme files referenced by GLOWUP_ID_PREFIXES articles must
+    // actually be present on disk, served, and be the expected bundle.
+    let client = client();
+
+    let css = client.get("/assets/ar5iv.0.9.0.css").dispatch();
+    assert_eq!(css.status(), Status::Ok, "missing /assets/ar5iv.0.9.0.css");
+    let css_body = css.into_string().unwrap();
+    // the bundled glowup theme uses cascade layers and inlines its @imports
+    assert!(css_body.contains("@layer"));
+    assert!(!css_body.contains("@import url(\"./ar5iv/"));
+
+    let fonts = client.get("/assets/ar5iv-fonts.0.9.0.css").dispatch();
+    assert_eq!(
+      fonts.status(),
+      Status::Ok,
+      "missing /assets/ar5iv-fonts.0.9.0.css"
+    );
+    // glowup switched the math font to STIX Two Math
+    assert!(fonts.into_string().unwrap().contains("STIX+Two+Math"));
+  }
+
+  #[test]
   fn robots_txt_is_served() {
     let client = client();
     let response = client.get("/robots.txt").dispatch();

@@ -1,5 +1,5 @@
 use crate::assemble_asset::LatexmlStatus;
-use crate::constants::{AR5IV_CSS_URL, AR5IV_FONTS_CSS_URL, DOC_NOT_FOUND_TEMPLATE, SITE_CSS_URL};
+use crate::constants::{document_css_urls, DOC_NOT_FOUND_TEMPLATE, SITE_CSS_URL};
 use regex::{Captures, Regex};
 use std::borrow::Cow;
 use std::sync::LazyLock;
@@ -256,6 +256,9 @@ Conversion to HTML had a Fatal error and exited abruptly. This document may be t
     "###,
     "</body>"
   );
+  // Recent months (see GLOWUP_ID_PREFIXES) are served the glowup ar5iv-css
+  // theme; everything else keeps the default stylesheet. The site CSS is shared.
+  let (fonts_css_url, ar5iv_css_url) = document_css_urls(id_arxiv);
   // Thanks to https://stackoverflow.com/questions/56300132/how-to-override-css-prefers-color-scheme-setting
   // local storage is used to override OS theme settings
   let pre_js_and_css = String::from(r###"
@@ -289,9 +292,9 @@ Conversion to HTML had a Fatal error and exited abruptly. This document may be t
     detectColorScheme(); }
 </script>
 <link media="all" rel="stylesheet" href=""###)
-  + AR5IV_FONTS_CSS_URL
+  + fonts_css_url
   + "\"><link media=\"all\" rel=\"stylesheet\" href=\""
-  + AR5IV_CSS_URL
+  + ar5iv_css_url
   + "\"><link media=\"all\" rel=\"stylesheet\" href=\""
   + SITE_CSS_URL
   + "\">
@@ -304,6 +307,8 @@ Conversion to HTML had a Fatal error and exited abruptly. This document may be t
 
 
 pub fn log_to_html(conversion_report: &str, id_arxiv: &str) -> String {
+  // Match the report page's theme to its article's (glowup or default).
+  let (fonts_css_url, ar5iv_css_url) = document_css_urls(id_arxiv);
   String::from(
     r###"<!DOCTYPE html><html>
 <head>
@@ -313,9 +318,9 @@ pub fn log_to_html(conversion_report: &str, id_arxiv: &str) -> String {
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <meta name="robots" content="noindex">
 <link media="all" rel="stylesheet" href=""###
-    + AR5IV_FONTS_CSS_URL+ r###"">
+    + fonts_css_url+ r###"">
 <link media="all" rel="stylesheet" href=""###
-    + AR5IV_CSS_URL
+    + ar5iv_css_url
     + r###"">
 </head>
 <body>
@@ -400,5 +405,42 @@ mod tests {
       None,
     );
     assert!(html.contains(r#"<meta property="og:title" content="An &quot;quoted&quot; title">"#));
+  }
+
+  fn branded(id: &str) -> String {
+    let input = r#"<html><head><title>t</title></head>
+<body><footer class="ltx_page_footer"></footer></body></html>"#;
+    dirty_branded_ar5iv_html(input.to_string(), id, LatexmlStatus::Ok, None, None)
+  }
+
+  #[test]
+  fn glowup_month_article_links_glowup_stylesheets() {
+    let html = branded("2606.01234");
+    assert!(html.contains(r#"href="/assets/ar5iv.0.9.0.css""#));
+    assert!(html.contains(r#"href="/assets/ar5iv-fonts.0.9.0.css""#));
+    // the default document/fonts stylesheets must not leak in
+    assert!(!html.contains("ar5iv.0.8.4.css"));
+    assert!(!html.contains("ar5iv-fonts.0.8.4.css"));
+    // the site stylesheet is shared across themes
+    assert!(html.contains(r#"href="/assets/ar5iv-site.0.2.2.css""#));
+  }
+
+  #[test]
+  fn default_month_article_links_default_stylesheets() {
+    let html = branded("2605.04404");
+    assert!(html.contains(r#"href="/assets/ar5iv.0.8.4.css""#));
+    assert!(html.contains(r#"href="/assets/ar5iv-fonts.0.8.4.css""#));
+    assert!(!html.contains("0.9.0"));
+  }
+
+  #[test]
+  fn conversion_report_matches_article_theme() {
+    let glowup = log_to_html("Status:conversion:0", "2606.01234");
+    assert!(glowup.contains("ar5iv.0.9.0.css"));
+    assert!(!glowup.contains("ar5iv.0.8.4.css"));
+
+    let default = log_to_html("Status:conversion:0", "2605.04404");
+    assert!(default.contains("ar5iv.0.8.4.css"));
+    assert!(!default.contains("0.9.0"));
   }
 }

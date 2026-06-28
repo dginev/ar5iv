@@ -1,0 +1,93 @@
+/* ar5iv-css "glowup" fonts -- copied from ar5iv-css.
+   Source : https://github.com/dginev/ar5iv-css  (branch: glowup, v0.9.0, commit 158aafb)
+   Differs from ar5iv-fonts.0.8.4.css: adds display=swap to body fonts and switches the
+   math font from Latin Modern Math to STIX Two Math. Paired with ar5iv.0.9.0.css. */
+
+/*
+  Remote font sources.
+
+  `display=swap` is appended to the body fonts (Noto Sans / Serif / Mono)
+  so first paint isn't blocked while waiting on Google Fonts —
+  fallbacks below render until the real fonts swap in. Math is
+  different: STIX Two Math has glyph forms (integrals, large operators,
+  proper subscript metrics) that Cambria Math / system math fall back
+  to imperfectly. Showing fallback math during the load window can
+  produce mis-aligned formulas, which is worse than a short paint
+  delay. So no `display=swap` on the math import.
+
+  For air-gapped / CDN-blocked environments, the @font-face local()
+  fallbacks below let the page render with locally-installed Noto.
+*/
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Mono:wght@400..700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,400..700;1,400..700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif:ital,wght@0,400..700;1,400..700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=STIX+Two+Math');
+
+/*======================================================================
+   Fallback fonts -- check locally if CDN access is blocked. */
+   @font-face{
+    font-display: fallback;
+    font-family: "Noto Sans Mono Fallback";
+    font-style: normal;
+    font-weight: 700;
+    src: local("Noto Sans Mono Bold"),
+         local("NotoSansMono-Bold"); }
+  @font-face{
+    font-display: fallback;
+    font-family: "Noto Sans Mono Fallback";
+    font-style: normal;
+    src: local("Noto Sans Mono"),
+         local("NotoSansMono-Regular"); }
+  @font-face{
+    font-display: fallback;
+    font-family: "Noto Sans Fallback";
+    font-weight: 700;
+    font-style: italic;
+    src: local("Noto Sans Bold Italic"),
+         local("NotoSans-BoldItalic"); }
+  @font-face{
+    font-display: fallback;
+    font-family: "Noto Sans Fallback";
+    font-style: normal;
+    font-weight: 700;
+    src:  local("Noto Sans Bold"),
+          local("NotoSans-Bold"); }
+  @font-face{
+    font-display: fallback;
+    font-family: "Noto Sans Fallback";
+    font-style: italic;
+    src: local("Noto Sans Italic"),
+         local("NotoSans-Italic"); }
+  @font-face{
+    font-display: fallback;
+    font-family: "Noto Sans Fallback";
+    font-style: normal;
+    src: local("Noto Sans"),
+         local("NotoSans-Regular"); }
+
+  @font-face{
+    font-display: fallback;
+    font-family: "Noto Serif Fallback";
+    font-weight: 700;
+    font-style: italic;
+    src: local("Noto Serif Bold Italic"),
+         local("NotoSerif-BoldItalic"); }
+  @font-face{
+    font-display: fallback;
+    font-family: "Noto Serif Fallback";
+    font-style: normal;
+    font-weight: 700;
+    src: local("Noto Serif Bold"),
+         local("NotoSerif-Bold"); }
+  @font-face{
+    font-display: fallback;
+    font-family: "Noto Serif Fallback";
+    font-style: italic;
+    src: local("Noto Serif Italic"),
+         local("NotoSerif-Italic"); }
+  @font-face{
+    font-display: fallback;
+    font-family: "Noto Serif Fallback";
+    font-style: normal;
+    src: local("Noto Serif"),
+         local("NotoSerif-Regular"); }
