@@ -2219,6 +2219,12 @@ li.ltx_item > .ltx_tag {
   margin-left: -2.5rem;
   padding-right: 0.5rem;
   text-align: right;
+  /* The tag is inline (baseline-aligned) while the adjacent .ltx_para is an
+     inline-block with vertical-align:top. Their first-line baselines diverge by
+     (line-height_tag - line-height_para)/2, so a tag inheriting the default
+     `normal` line-height floats above the paragraph's first line. Match the
+     prose line-height to put the tag on the same baseline. */
+  line-height: 1.5rem;
 }
 .ltx_item .ltx_tag + .ltx_para {
   vertical-align: top;

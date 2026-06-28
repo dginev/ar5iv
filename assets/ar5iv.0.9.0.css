@@ -1,5 +1,5 @@
 /* ar5iv-css "glowup" theme -- bundled for ar5iv.
-   Source : github.com/dginev/ar5iv-css  (branch: glowup, v0.9.0, commit 59882bb)
+   Source : github.com/dginev/ar5iv-css  (branch: glowup, v0.9.0, commit 94266d3)
    Bundle : lightningcss --bundle. Generated artifact; regenerate from glowup. */
 
 @layer reset;
@@ -1989,6 +1989,7 @@
 
   li.ltx_item > .ltx_tag {
     text-align: end;
+    line-height: var(--line-height-prose);
     margin-inline-start: -2.5rem;
     padding-inline-end: .5rem;
     display: inline;
