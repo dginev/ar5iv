@@ -3,55 +3,18 @@ pub static AR5IV_CSS_URL: &str = "/assets/ar5iv.0.8.5.css";
 pub static AR5IV_FONTS_CSS_URL: &str = "/assets/ar5iv-fonts.0.8.4.css";
 pub static SITE_CSS_URL: &str = "/assets/ar5iv-site.0.2.2.css";
 
-/// The "glowup" ar5iv-css theme (ar5iv-css v0.9.0, glowup branch), served to a
-/// rolling set of recent arXiv months instead of the default theme above. The
-/// site stylesheet (`SITE_CSS_URL`) has no glowup counterpart, so it stays shared.
+/// The "glowup" ar5iv-css theme (ar5iv-css v0.9.0, glowup branch), now served to
+/// every article -- latexml-oxide is the primary bundle corpus-wide. The site
+/// stylesheet (`SITE_CSS_URL`) has no glowup counterpart, so it stays shared.
 pub static AR5IV_CSS_GLOWUP_URL: &str = "/assets/ar5iv.0.9.0.css";
 pub static AR5IV_FONTS_CSS_GLOWUP_URL: &str = "/assets/ar5iv-fonts.0.9.0.css";
 
-/// arXiv id prefixes whose articles are served the glowup theme. These are the
-/// months first generated with latexml-oxide (2026-06 onward); extend the list
-/// as more months are (re)processed. Matched against the version-stripped id
-/// (e.g. "2606.01234"); the trailing '.' is part of every modern id, so "2606."
-/// pins the match to year 26 / month 06 and never to a legacy id like
-/// "math/0211159".
-pub static GLOWUP_ID_PREFIXES: &[&str] = &[
-  "2606.", "2607.", "2608.", "2609.", "2610.", "2611.", "2612.",
-];
-
-/// Whether an article's (version-stripped) arxiv id should use the glowup theme.
-pub fn uses_glowup_theme(id_arxiv: &str) -> bool {
-  GLOWUP_ID_PREFIXES
-    .iter()
-    .any(|prefix| id_arxiv.starts_with(prefix))
-}
-
-/// The `(fonts_css_url, document_css_url)` pair for an article: the glowup theme
-/// for ids in `GLOWUP_ID_PREFIXES`, otherwise the default. Single source of
-/// truth for both the article page and its conversion-report page.
-pub fn document_css_urls(id_arxiv: &str) -> (&'static str, &'static str) {
-  if uses_glowup_theme(id_arxiv) {
-    (AR5IV_FONTS_CSS_GLOWUP_URL, AR5IV_CSS_GLOWUP_URL)
-  } else {
-    (AR5IV_FONTS_CSS_URL, AR5IV_CSS_URL)
-  }
-}
-
-/// Months from this YYMM onward are produced by latexml-oxide via the cortex
-/// `oxidized_tex_to_html` service, so their result bundle on disk is named
-/// `oxidized_tex_to_html.zip` (underscored) rather than the legacy
-/// `tex_to_html.zip`. Open-ended ("2606. and on"), hence a plain YYMM
-/// comparison rather than the finite `GLOWUP_ID_PREFIXES` list.
-pub static OXIDIZED_BUNDLE_MIN_YYMM: &str = "2606";
-
-/// Whether a paper id's month serves the underscored `oxidized_tex_to_html.zip`
-/// bundle (modern ids with YYMM >= `OXIDIZED_BUNDLE_MIN_YYMM`); legacy/older ids
-/// keep `tex_to_html.zip`.
-pub fn uses_oxidized_bundle(id_arxiv: &str) -> bool {
-  id_arxiv
-    .get(0..4)
-    .map(|yymm| yymm >= OXIDIZED_BUNDLE_MIN_YYMM)
-    .unwrap_or(false)
+/// The `(fonts_css_url, document_css_url)` pair for an article: every paper now
+/// uses the glowup theme. Single source of truth for both the article page and
+/// its conversion-report page. (The default `AR5IV_CSS_URL` pair is still used by
+/// the homepage and 404 templates.)
+pub fn document_css_urls(_id_arxiv: &str) -> (&'static str, &'static str) {
+  (AR5IV_FONTS_CSS_GLOWUP_URL, AR5IV_CSS_GLOWUP_URL)
 }
 
 pub static DOC_NOT_FOUND_TEMPLATE: &str = r###"<!DOCTYPE html>
@@ -80,29 +43,22 @@ mod tests {
   use super::*;
 
   #[test]
-  fn glowup_months_select_the_glowup_theme() {
-    for id in ["2606.01234", "2606.1234", "2609.00001", "2612.99999"] {
-      assert!(uses_glowup_theme(id), "expected glowup for {id}");
-      assert_eq!(
-        document_css_urls(id),
-        (AR5IV_FONTS_CSS_GLOWUP_URL, AR5IV_CSS_GLOWUP_URL)
-      );
-    }
-  }
-
-  #[test]
-  fn other_ids_keep_the_default_theme() {
-    // earlier 2026 months, a future month past the rollout, a legacy id, and a
-    // would-be prefix collision all stay on the default stylesheet.
+  fn every_article_uses_the_glowup_theme() {
+    // legacy ids, modern ids, a future month, and edge cases all resolve to the
+    // single glowup theme now that latexml-oxide is the corpus-wide bundle.
     for id in [
+      "2606.01234",
       "2605.04404",
       "2601.00001",
       "2701.00001",
       "math/0211159",
       "2606extra",
     ] {
-      assert!(!uses_glowup_theme(id), "expected default for {id}");
-      assert_eq!(document_css_urls(id), (AR5IV_FONTS_CSS_URL, AR5IV_CSS_URL));
+      assert_eq!(
+        document_css_urls(id),
+        (AR5IV_FONTS_CSS_GLOWUP_URL, AR5IV_CSS_GLOWUP_URL),
+        "expected glowup for {id}"
+      );
     }
   }
 }
