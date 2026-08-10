@@ -428,11 +428,11 @@ mod tests {
       response.headers().get_one("Location"),
       Some("https://arxiv.org/abs/2512.99999")
     );
-    let response = client.get("/html/math/0211159v2").dispatch();
+    let response = client.get("/html/math/0211999v2").dispatch();
     assert_eq!(response.status(), Status::TemporaryRedirect);
     assert_eq!(
       response.headers().get_one("Location"),
-      Some("https://arxiv.org/abs/math/0211159v2")
+      Some("https://arxiv.org/abs/math/0211999v2")
     );
   }
 
@@ -482,8 +482,8 @@ mod tests {
 
   #[test]
   fn glowup_assets_are_served() {
-    // the glowup theme files referenced by GLOWUP_ID_PREFIXES articles must
-    // actually be present on disk, served, and be the expected bundle.
+    // the glowup theme files served to every article must actually be present on
+    // disk, served, and be the expected bundle.
     let client = client();
 
     let css = client.get("/assets/ar5iv.0.9.0.css").dispatch();

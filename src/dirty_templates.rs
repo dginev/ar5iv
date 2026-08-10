@@ -256,8 +256,7 @@ Conversion to HTML had a Fatal error and exited abruptly. This document may be t
     "###,
     "</body>"
   );
-  // Recent months (see GLOWUP_ID_PREFIXES) are served the glowup ar5iv-css
-  // theme; everything else keeps the default stylesheet. The site CSS is shared.
+  // Every article is served the glowup ar5iv-css theme. The site CSS is shared.
   let (fonts_css_url, ar5iv_css_url) = document_css_urls(id_arxiv);
   // Thanks to https://stackoverflow.com/questions/56300132/how-to-override-css-prefers-color-scheme-setting
   // local storage is used to override OS theme settings
@@ -426,21 +425,22 @@ mod tests {
   }
 
   #[test]
-  fn default_month_article_links_default_stylesheets() {
+  fn legacy_month_article_also_links_glowup_stylesheets() {
+    // every article -- including older months -- now uses the glowup theme.
     let html = branded("2605.04404");
-    assert!(html.contains(r#"href="/assets/ar5iv.0.8.5.css""#));
-    assert!(html.contains(r#"href="/assets/ar5iv-fonts.0.8.4.css""#));
-    assert!(!html.contains("0.9.0"));
+    assert!(html.contains(r#"href="/assets/ar5iv.0.9.0.css""#));
+    assert!(html.contains(r#"href="/assets/ar5iv-fonts.0.9.0.css""#));
+    assert!(!html.contains("ar5iv.0.8.5.css"));
   }
 
   #[test]
   fn conversion_report_matches_article_theme() {
     let glowup = log_to_html("Status:conversion:0", "2606.01234");
     assert!(glowup.contains("ar5iv.0.9.0.css"));
-    assert!(!glowup.contains("ar5iv.0.8.4.css"));
+    assert!(!glowup.contains("ar5iv.0.8.5.css"));
 
-    let default = log_to_html("Status:conversion:0", "2605.04404");
-    assert!(default.contains("ar5iv.0.8.5.css"));
-    assert!(!default.contains("0.9.0"));
+    let legacy = log_to_html("Status:conversion:0", "2605.04404");
+    assert!(legacy.contains("ar5iv.0.9.0.css"));
+    assert!(!legacy.contains("ar5iv.0.8.5.css"));
   }
 }

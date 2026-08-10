@@ -10,7 +10,7 @@ use crate::cache::{
   asset_key, build_arxiv_id, hget_cached, log_key, paper_key, set_cached, set_cached_asset, Cache,
   SIXTY_FOUR_MIB, TEN_MIB,
 };
-use crate::constants::{uses_oxidized_bundle, LOG_FILENAME};
+use crate::constants::LOG_FILENAME;
 use crate::dirty_templates::{dirty_branded_ar5iv_html, log_to_html};
 use crate::paper_order::AR5IV_PAPERS_ROOT_DIR;
 
@@ -257,27 +257,23 @@ fn build_paper_path(field_opt: Option<&str>, id: &str) -> Option<PathBuf> {
   // `get` returns None -- rather than panicking -- for short ids, and for ids
   // where byte 4 would split a multi-byte UTF-8 character.
   let id_base = id.get(0..4)?;
-  // latexml-oxide months (2606. and on) ship `oxidized_tex_to_html.zip`; older
-  // months keep the legacy `tex_to_html.zip`.
-  let bundle = if uses_oxidized_bundle(id) {
-    "oxidized_tex_to_html.zip"
-  } else {
-    "tex_to_html.zip"
-  };
-  let paper_path_str = format!(
-    "{}/{}/{}{}/{}",
-    *AR5IV_PAPERS_ROOT_DIR,
-    id_base,
-    field_opt.unwrap_or(""),
-    id,
-    bundle
-  );
-  let paper_path = Path::new(&paper_path_str);
-  if paper_path.exists() {
-    Some(paper_path.to_path_buf())
-  } else {
-    None
+  let field = field_opt.unwrap_or("");
+  // latexml-oxide's `oxidized_tex_to_html.zip` is the primary bundle for every
+  // paper; the legacy latexml `tex_to_html.zip` is a fallback for papers not yet
+  // re-processed. Prefer oxidized when present so a partially-migrated
+  // back-catalog never regresses -- whichever bundle is on disk is served,
+  // oxidized first.
+  for bundle in ["oxidized_tex_to_html.zip", "tex_to_html.zip"] {
+    let paper_path_str = format!(
+      "{}/{}/{}{}/{}",
+      *AR5IV_PAPERS_ROOT_DIR, id_base, field, id, bundle
+    );
+    let paper_path = Path::new(&paper_path_str);
+    if paper_path.exists() {
+      return Some(paper_path.to_path_buf());
+    }
   }
+  None
 }
 
 fn build_source_zip_path(field_opt: Option<&str>, id: &str) -> Option<PathBuf> {
