@@ -415,7 +415,7 @@ mod tests {
   #[test]
   fn glowup_month_article_links_glowup_stylesheets() {
     let html = branded("2606.01234");
-    assert!(html.contains(r#"href="/assets/ar5iv.0.9.0.css""#));
+    assert!(html.contains(r#"href="/assets/ar5iv.0.9.1.css""#));
     assert!(html.contains(r#"href="/assets/ar5iv-fonts.0.9.0.css""#));
     // the default document/fonts stylesheets must not leak in
     assert!(!html.contains("ar5iv.0.8.4.css"));
@@ -428,7 +428,7 @@ mod tests {
   fn legacy_month_article_also_links_glowup_stylesheets() {
     // every article -- including older months -- now uses the glowup theme.
     let html = branded("2605.04404");
-    assert!(html.contains(r#"href="/assets/ar5iv.0.9.0.css""#));
+    assert!(html.contains(r#"href="/assets/ar5iv.0.9.1.css""#));
     assert!(html.contains(r#"href="/assets/ar5iv-fonts.0.9.0.css""#));
     assert!(!html.contains("ar5iv.0.8.5.css"));
   }
@@ -436,11 +436,11 @@ mod tests {
   #[test]
   fn conversion_report_matches_article_theme() {
     let glowup = log_to_html("Status:conversion:0", "2606.01234");
-    assert!(glowup.contains("ar5iv.0.9.0.css"));
+    assert!(glowup.contains("ar5iv.0.9.1.css"));
     assert!(!glowup.contains("ar5iv.0.8.5.css"));
 
     let legacy = log_to_html("Status:conversion:0", "2605.04404");
-    assert!(legacy.contains("ar5iv.0.9.0.css"));
+    assert!(legacy.contains("ar5iv.0.9.1.css"));
     assert!(!legacy.contains("ar5iv.0.8.5.css"));
   }
 }

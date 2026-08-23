@@ -3,10 +3,11 @@ pub static AR5IV_CSS_URL: &str = "/assets/ar5iv.0.8.5.css";
 pub static AR5IV_FONTS_CSS_URL: &str = "/assets/ar5iv-fonts.0.8.4.css";
 pub static SITE_CSS_URL: &str = "/assets/ar5iv-site.0.2.2.css";
 
-/// The "glowup" ar5iv-css theme (ar5iv-css v0.9.0, glowup branch), now served to
+/// The "glowup" ar5iv-css theme (ar5iv-css v0.9.1, glowup branch), now served to
 /// every article -- latexml-oxide is the primary bundle corpus-wide. The site
 /// stylesheet (`SITE_CSS_URL`) has no glowup counterpart, so it stays shared.
-pub static AR5IV_CSS_GLOWUP_URL: &str = "/assets/ar5iv.0.9.0.css";
+/// Fonts CSS is unchanged since 0.9.0, so its URL stays pinned there.
+pub static AR5IV_CSS_GLOWUP_URL: &str = "/assets/ar5iv.0.9.1.css";
 pub static AR5IV_FONTS_CSS_GLOWUP_URL: &str = "/assets/ar5iv-fonts.0.9.0.css";
 
 /// The `(fonts_css_url, document_css_url)` pair for an article: every paper now

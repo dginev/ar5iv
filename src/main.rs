@@ -486,8 +486,8 @@ mod tests {
     // disk, served, and be the expected bundle.
     let client = client();
 
-    let css = client.get("/assets/ar5iv.0.9.0.css").dispatch();
-    assert_eq!(css.status(), Status::Ok, "missing /assets/ar5iv.0.9.0.css");
+    let css = client.get("/assets/ar5iv.0.9.1.css").dispatch();
+    assert_eq!(css.status(), Status::Ok, "missing /assets/ar5iv.0.9.1.css");
     let css_body = css.into_string().unwrap();
     // the bundled glowup theme uses cascade layers and inlines its @imports
     assert!(css_body.contains("@layer"));
