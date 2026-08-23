@@ -1,3 +1,7 @@
+// clippy nightly drift (2026-08): route handlers return a Result whose Err variant
+// (a Rocket responder enum) is large by design; scoped allow beats boxing every route.
+#![allow(clippy::result_large_err)]
+
 #[macro_use]
 extern crate rocket;
 use rocket::fs::NamedFile;

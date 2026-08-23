@@ -1,3 +1,7 @@
+// clippy nightly drift (2026-08): these pre-existing cache fns return `Result<_, ()>`
+// and one has a large `Err` variant. Scoped allow here beats reshaping the cache API.
+#![allow(clippy::result_unit_err, clippy::result_large_err)]
+
 use crate::assemble_asset::{assemble_log, assemble_paper, assemble_paper_asset};
 use rand::seq::SliceRandom;
 use regex::Regex;
