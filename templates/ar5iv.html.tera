@@ -39,8 +39,6 @@
               <li style="margin-bottom: 2rem;">Sources upto the end of August 2026.
                 <span class="ltx_font_bold">Not</span> a live preview service.
               </li>
-              <li style="margin-bottom: 2rem;">Available as a dataset, <a class="ltx_ref" href="https://sigmathling.kwarc.info/resources/ar5iv-dataset-2024/">download here</a>.
-              </li>
               <li style="margin-bottom: 2rem;">For articles with multiple revisions,
                 only a <span class="ltx_font_bold">single</span> version is made
                 available.<br> When in doubt, always use the main arXiv.org article page.</li>
