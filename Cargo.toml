@@ -6,7 +6,7 @@ default-run = "ar5iv"
 
 [dependencies]
 regex = "1.5.4"
-zip = "8.1"
+zip = "9.0"
 walkdir = "2"
 redis = "1.0.1"
 rand = "0.10.2"
