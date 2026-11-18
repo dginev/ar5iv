@@ -15,8 +15,10 @@ static SINFUL_P_CONTENT: LazyLock<Regex> =
   LazyLock::new(|| Regex::new("\"ltx_p\">((?s).+?)</p>").unwrap());
 static SINFUL_MATH: LazyLock<Regex> = LazyLock::new(|| Regex::new("<math(?s:.+?)</math>").unwrap());
 static SINFUL_TAGS: LazyLock<Regex> = LazyLock::new(|| Regex::new("<[^>]+?>").unwrap());
+// (up to the abstract's first paragraph end, not its first `</div>`: a note `<div>` before the abstract's `<p>`
+// (latexml-oxide 2026-11, arXiv 2605.00455) or a multi-class abstract (2605.00115) lost the description)
 static ABSTRACT_ELEMENT: LazyLock<Regex> =
-  LazyLock::new(|| Regex::new("\"ltx_abstract\">((?s).+?)</div>").unwrap());
+  LazyLock::new(|| Regex::new("\"ltx_abstract[^\"]*\">((?s).+?</p>)").unwrap());
 static SRC_ATTR: LazyLock<Regex> = LazyLock::new(|| Regex::new(" src=\"([^\"]+)").unwrap());
 static DATA_SVG_ATTR: LazyLock<Regex> =
   LazyLock::new(|| Regex::new(" data=\"([^\"]+)[.]svg").unwrap());
@@ -413,9 +415,24 @@ mod tests {
   }
 
   #[test]
+  fn description_reads_the_abstract_paragraph_past_a_note_and_extra_classes() {
+    for abstract_open in [r#"<div class="ltx_abstract">"#, r#"<div class="ltx_abstract ltx_centering">"#] {
+      let input = format!(
+        r#"<html><head><title>T</title></head><body>{abstract_open}<h6 class="ltx_title ltx_title_abstract">Abstract</h6><div class="ltx_note ltx_role_email ltx_note_unmarked">a@b.c</div><p class="ltx_p">The abstract text.</p></div>
+<footer class="ltx_page_footer"></footer></body></html>"#
+      );
+      let html = dirty_branded_ar5iv_html(input, "2605.00455", LatexmlStatus::Ok, None, None);
+      assert!(
+        html.contains(r#"<meta property="og:description" content="The abstract text.">"#),
+        "{abstract_open}: {html}"
+      );
+    }
+  }
+
+  #[test]
   fn glowup_month_article_links_glowup_stylesheets() {
     let html = branded("2606.01234");
-    assert!(html.contains(r#"href="/assets/ar5iv.0.9.2.css""#));
+    assert!(html.contains(r#"href="/assets/ar5iv.0.9.5.css""#));
     assert!(html.contains(r#"href="/assets/ar5iv-fonts.0.9.0.css""#));
     // the default document/fonts stylesheets must not leak in
     assert!(!html.contains("ar5iv.0.8.4.css"));
@@ -428,7 +445,7 @@ mod tests {
   fn legacy_month_article_also_links_glowup_stylesheets() {
     // every article -- including older months -- now uses the glowup theme.
     let html = branded("2605.04404");
-    assert!(html.contains(r#"href="/assets/ar5iv.0.9.2.css""#));
+    assert!(html.contains(r#"href="/assets/ar5iv.0.9.5.css""#));
     assert!(html.contains(r#"href="/assets/ar5iv-fonts.0.9.0.css""#));
     assert!(!html.contains("ar5iv.0.8.5.css"));
   }
@@ -436,11 +453,11 @@ mod tests {
   #[test]
   fn conversion_report_matches_article_theme() {
     let glowup = log_to_html("Status:conversion:0", "2606.01234");
-    assert!(glowup.contains("ar5iv.0.9.2.css"));
+    assert!(glowup.contains("ar5iv.0.9.5.css"));
     assert!(!glowup.contains("ar5iv.0.8.5.css"));
 
     let legacy = log_to_html("Status:conversion:0", "2605.04404");
-    assert!(legacy.contains("ar5iv.0.9.2.css"));
+    assert!(legacy.contains("ar5iv.0.9.5.css"));
     assert!(!legacy.contains("ar5iv.0.8.5.css"));
   }
 }
