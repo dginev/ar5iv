@@ -12,7 +12,7 @@ use rocket::response::{self, content, status, Redirect, Responder};
 use rocket::{Request, State};
 use rocket_db_pools::Connection;
 use rocket_db_pools::Database;
-use rocket_dyn_templates::Template;
+use rocket_dyn_templates::{Template, Templating};
 
 use ar5iv::assemble_asset::fetch_zip;
 use ar5iv::cache::{
@@ -132,7 +132,7 @@ fn default_context() -> HashMap<&'static str, &'static str> {
 
 #[get("/")]
 async fn about() -> Template {
-  Template::render("ar5iv", default_context())
+  Template::render("ar5iv.html", default_context())
 }
 
 #[get("/favicon.ico")]
@@ -158,7 +158,7 @@ async fn get_html(
   } else {
     let mut map = default_context();
     map.insert("id", id);
-    Err(HtmlFallback::NotFound(Template::render("404", &map)))
+    Err(HtmlFallback::NotFound(Template::render("404.html", &map)))
   }
 }
 #[get("/html/<field>/<id>", rank = 2)]
@@ -179,7 +179,7 @@ async fn get_field_html(
     let mut map = default_context();
     let arxiv_id = format!("{field}/{id}");
     map.insert("id", &arxiv_id);
-    Err(HtmlFallback::NotFound(Template::render("404", &map)))
+    Err(HtmlFallback::NotFound(Template::render("404.html", &map)))
   }
 }
 
@@ -262,7 +262,7 @@ fn general_not_found(req: &Request) -> Template {
   let uri_id = req.uri().path().to_string();
   let mut map = default_context();
   map.insert("id", &uri_id[1..]);
-  Template::render("404", &map)
+  Template::render("404.html", &map)
 }
 
 #[get("/log/<id>")]
@@ -275,7 +275,7 @@ async fn get_log(
   } else {
     let mut map = default_context();
     map.insert("id", id);
-    Err(Template::render("404", &map))
+    Err(Template::render("404.html", &map))
   }
 }
 #[get("/log/<field>/<id>")]
@@ -291,7 +291,7 @@ async fn get_field_log(
     let arxiv_id = format!("{field}/{id}");
     map.insert("id", &arxiv_id);
 
-    Err(Template::render("404", &map))
+    Err(Template::render("404.html", &map))
   }
 }
 
@@ -342,7 +342,7 @@ fn default_catcher(status: Status, req: &Request<'_>) -> status::Custom<String> 
 #[launch]
 fn rocket() -> _ {
   rocket::build()
-    .attach(Template::fairing())
+    .attach(Templating::new())
     .attach(Cache::init())
     .mount(
       "/",
@@ -375,7 +375,7 @@ fn rocket() -> _ {
 
 #[cfg(test)]
 mod tests {
-  use rocket::http::Status;
+  use rocket::http::{ContentType, Status};
   use rocket::local::blocking::Client;
 
   fn client() -> Client {
@@ -387,6 +387,40 @@ mod tests {
     let client = client();
     let response = client.get("/").dispatch();
     assert_eq!(response.status(), Status::Ok);
+    assert_eq!(response.content_type(), Some(ContentType::HTML));
+    // the `ar5iv.html` template rendered, with its context filled in
+    let body = response.into_string().expect("a body");
+    assert!(
+      body.contains("<title>ar5iv – Articles from arXiv.org"),
+      "{body}"
+    );
+    assert!(body.contains(super::SITE_CSS_URL), "{body}");
+  }
+
+  #[test]
+  fn not_found_pages_render_the_404_template() {
+    // A failed template render is a 500, so the status alone does not show the
+    // `404.html` template rendered: check its text and the id it was given.
+    let client = client();
+    for (uri, id) in [
+      ("/html/blahblah", "blahblah"),                         // get_html
+      ("/html/notanarchive/0211159", "notanarchive/0211159"), // get_field_html
+      ("/no/such/route", "no/such/route"),                    // the general_not_found catcher
+    ] {
+      let response = client.get(uri).dispatch();
+      assert_eq!(response.status(), Status::NotFound, "{uri}");
+      assert_eq!(response.content_type(), Some(ContentType::HTML), "{uri}");
+      let body = response.into_string().expect("a body");
+      assert!(body.contains("No document for"), "{uri}: {body}");
+      assert!(body.contains(id), "{uri}: {body}");
+      assert!(body.contains(super::SITE_CSS_URL), "{uri}: {body}");
+    }
+    // the id comes from the URL path, so the `.html` name must keep it escaped
+    let response = client.get("/html/a%3Cb%3E").dispatch();
+    assert_eq!(response.status(), Status::NotFound);
+    let body = response.into_string().expect("a body");
+    assert!(body.contains("a&lt;b&gt;"), "{body}");
+    assert!(!body.contains("a<b>"), "{body}");
   }
 
   #[test]
