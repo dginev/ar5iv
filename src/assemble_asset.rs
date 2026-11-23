@@ -61,7 +61,13 @@ pub async fn assemble_paper(
       if let Ok(mut file) = zip.by_index(i) {
         if file.is_file() {
           let mut asset = None;
-          match file.name() {
+          // zip 9's `name()` is fallible (UTF-8, else CP437); skip an undecodable entry.
+          // Owned, so the arms below may borrow `file` mutably to read it.
+          let name = match file.name() {
+            Ok(n) => n.into_owned(),
+            Err(_) => continue,
+          };
+          match name.as_str() {
             name if name.ends_with(".html") => {
               if html.is_empty() {
                 // a damaged main document makes the paper unusable.
