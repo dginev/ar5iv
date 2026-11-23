@@ -2031,12 +2031,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ref-swap"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "09c30c54dffee5b40af088d5d50aa3455c91a0127164b51f0215efc4cb28fb3c"
-
-[[package]]
 name = "regex"
 version = "1.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2067,9 +2061,9 @@ checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 
 [[package]]
 name = "rocket"
-version = "0.5.2"
+version = "0.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c17431360eb641a861453b57107ee1b425a799f49ec1b0fe9b8a45fe437447ce"
+checksum = "b994aab1e1d2342ede2ee7a9be3aa18fc9eaa1c819d9a4b83cb6c5899f345bf8"
 dependencies = [
  "async-stream",
  "async-trait",
@@ -2088,7 +2082,6 @@ dependencies = [
  "parking_lot",
  "pin-project-lite",
  "ref-cast",
- "ref-swap",
  "rocket_codegen",
  "rocket_http",
  "serde",
@@ -2105,9 +2098,9 @@ dependencies = [
 
 [[package]]
 name = "rocket_codegen"
-version = "0.5.2"
+version = "0.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "352bd0b773ca6f5bea6cd18efc2fd7f04fcd34c75c242dad6ef1bbd729cc619d"
+checksum = "45c73d9cca43eac063ffb1e7f6b2ba52c777d8c5e63dbc6268610e3c8e217154"
 dependencies = [
  "devise 0.5.0",
  "glob",
@@ -2159,9 +2152,9 @@ dependencies = [
 
 [[package]]
 name = "rocket_http"
-version = "0.5.2"
+version = "0.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "847886ef963dff77126f110fd2b4401f5149440ab32973bef16c4a2cc83e525f"
+checksum = "e87495dd15914c130bd1f90bba3c53f2b32535fc3b0203bf7a885c1259d973a3"
 dependencies = [
  "cookie",
  "either",
